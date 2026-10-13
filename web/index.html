@@ -58,12 +58,29 @@
                   return;
                 }
                 try {
+                  // 1. Bat buoc xac thuc Firebase Cloud de Firebase kiem soat quyen dang nhap
                   if (typeof firebase !== 'undefined' && firebase.auth) {
                     try {
                       const credential = firebase.auth.GoogleAuthProvider.credential(null, tokenResponse.access_token);
-                      await firebase.auth().signInWithCredential(credential);
+                      const fbResult = await firebase.auth().signInWithCredential(credential);
+                      const fbUser = fbResult.user;
+                      resolve(JSON.stringify({
+                        success: true,
+                        uid: fbUser.uid,
+                        email: fbUser.email,
+                        displayName: fbUser.displayName || fbUser.email.split('@')[0],
+                        photoURL: fbUser.photoURL || ''
+                      }));
+                      return;
                     } catch (fbCredErr) {
-                      console.info("Firebase credential sign-in note:", fbCredErr);
+                      console.warn("Firebase credential sign-in error:", fbCredErr);
+                      if (fbCredErr && (fbCredErr.code === 'auth/operation-not-allowed' || String(fbCredErr).includes('operation-not-allowed'))) {
+                        resolve(JSON.stringify({
+                          success: false,
+                          error: 'LỖI FIREBASE CLOUD: Phương thức Google đang bị TẮT (Disabled) trên Firebase Console! Firebase Cloud đã từ chối và chặn đăng nhập.',
+                        }));
+                        return;
+                      }
                     }
                   }
                   const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {

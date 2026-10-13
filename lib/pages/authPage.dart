@@ -48,10 +48,12 @@ class _AuthPageState extends State<AuthPage> {
                 ? (res['error'] ?? res['message']).toString()
                 : '';
             
-            if (errorStr.contains('origin_mismatch')) {
+            if (errorStr.contains('FIREBASE') || errorStr.contains('Firebase')) {
+              _errorMessage = errorStr;
+            } else if (errorStr.contains('origin_mismatch')) {
               _errorMessage = 'Google chặn do cổng ${Uri.base.origin} chưa được khai báo trong Google Cloud Console (Error 400: origin_mismatch).\n👉 Bạn có thể nhập nhanh địa chỉ Gmail của mình bên dưới để đăng nhập Firebase ngay!';
             } else if (errorStr.isNotEmpty && !errorStr.contains('closed-by-user')) {
-              _errorMessage = 'Thông báo từ Google: $errorStr.\n👉 Bạn có thể nhập nhanh Gmail bên dưới để tiếp tục.';
+              _errorMessage = errorStr;
             } else {
               _errorMessage = 'Bạn có thể nhập trực tiếp địa chỉ Gmail của bạn bên dưới để đăng nhập Firebase.';
             }
