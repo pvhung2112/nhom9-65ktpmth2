@@ -187,7 +187,53 @@ class NavigationSidebar extends StatelessWidget {
                           ],
                         ),
                       ),
-                      IconButton(
+                                            IconButton(
+                        tooltip: 'Chuyển tài khoản kiểm thử RLS (Checklist 6)',
+                        icon: const Icon(Icons.switch_account_rounded, size: 18, color: Color(0xFF1976D2)),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              title: const Row(
+                                children: [
+                                  Icon(Icons.security_rounded, color: Color(0xFFD81B60)),
+                                  SizedBox(width: 10),
+                                  Text('Chuyển đổi tài khoản (Checklist 6)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              content: SizedBox(
+                                width: 380,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: FirebaseAuthService.predefinedAccounts.map((acc) {
+                                    final isCurrent = auth.currentUser?.id == acc.id;
+                                    return ListTile(
+                                      dense: true,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      selected: isCurrent,
+                                      selectedTileColor: const Color(0xFFF7D8DF),
+                                      leading: CircleAvatar(
+                                        radius: 14,
+                                        backgroundColor: isCurrent ? const Color(0xFFD81B60) : Colors.grey.shade400,
+                                        child: Text(acc.displayName[0], style: const TextStyle(color: Colors.white, fontSize: 11)),
+                                      ),
+                                      title: Text(acc.displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      subtitle: Text(acc.email + ' • ' + acc.role, style: const TextStyle(fontSize: 10)),
+                                      trailing: isCurrent ? const Icon(Icons.check_circle_rounded, color: Color(0xFFD81B60), size: 18) : null,
+                                      onTap: () async {
+                                        Navigator.pop(ctx);
+                                        await auth.switchUser(acc.id);
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+IconButton(
                         tooltip: 'Đăng xuất tài khoản',
                         icon: const Icon(
                           Icons.logout_rounded,
