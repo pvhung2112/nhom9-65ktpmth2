@@ -36,6 +36,6 @@ Future<Map<String, dynamic>?> triggerWebGoogleSignIn() async {
 }
 
 void openGoogleAccountsUrl() {
-  const url = 'https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=344574429469-nmbnnl4piuqo6seljr1t2u6v248n6nbo.apps.googleusercontent.com&redirect_uri=https://study-document-cloud.firebaseapp.com/__/auth/handler&scope=openid+email+profile';
+  const url = 'https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=315499644525-9fqeclplnv2eqr9hcgp4pol58fgifahr.apps.googleusercontent.com&redirect_uri=https://study-document-cloud.firebaseapp.com/__/auth/handler&scope=openid+email+profile';
   html.window.open(url, '_blank');
 }
