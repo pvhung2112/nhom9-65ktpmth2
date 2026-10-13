@@ -228,6 +228,32 @@ class StudyDocumentCard extends StatelessWidget {
                   ),
                 ],
 
+                if (document.fileUrl.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD81B60).withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFD81B60).withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud_done_rounded, size: 13, color: Color(0xFFD81B60)),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            'Firebase Storage: ' + (document.fileUrl.contains('documents') ? document.fileUrl.split('documents').last.split('?').first.replaceAll('%2F', '/') : 'Tệp Cloud đính kèm'),
+                            style: const TextStyle(fontSize: 10, color: Color(0xFFD81B60), fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
 
                 // Footer: Deadline, Status, Toggle
