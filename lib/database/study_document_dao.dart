@@ -21,6 +21,10 @@ class DocumentDao {
     await _db.deleteDocument(id);
   }
 
+  Future<void> clearAll() async {
+    await _db.clearAllDocuments();
+  }
+
   StudyDocument? getById(String id) => _db.getDocument(id);
 
   List<StudyDocument> getAll({DocumentType? type, String? courseId}) {

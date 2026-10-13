@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS public.document_permissions (
     user_id VARCHAR(100) NOT NULL,
     user_email VARCHAR(255) NOT NULL,
     user_name VARCHAR(255) NOT NULL,
-    permission_type VARCHAR(20) NOT NULL CHECK (permission_type IN ('view', 'edit')),
+    permission_type VARCHAR(100) NOT NULL -- Cho phép mảng quyền JSON ['view','edit','delete','share'] hoặc chuỗi,
     granted_by VARCHAR(100) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
 

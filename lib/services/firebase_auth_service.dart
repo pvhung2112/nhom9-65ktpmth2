@@ -120,36 +120,23 @@ class FirebaseAuthService with ChangeNotifier {
       }
     }
 
-    // 2. Xác định vai trò IAM và tên hiển thị khi Firebase chấp thuận
-    String role = 'Editor';
+    // 2. Tên hiển thị người dùng từ Google hoặc trích xuất từ Email
     String finalName = displayName?.trim() ?? '';
-
-    if (cleanEmail == 'phamvanhung21122004@gmail.com') {
-      role = 'Owner / Trưởng nhóm';
-      if (finalName.isEmpty) finalName = 'Phạm Văn Hưng';
-    } else if (cleanEmail == 'trinhtrungkien2004@gmail.com') {
-      role = 'Editor / Frontend';
-      if (finalName.isEmpty) finalName = 'Trịnh Trung Kiên';
-    } else if (cleanEmail == 'doviettien2004@gmail.com') {
-      role = 'Viewer / Sinh viên';
-      if (finalName.isEmpty) finalName = 'Đỗ Việt Tiến';
-    } else {
-      if (finalName.isEmpty) {
-        final prefix = cleanEmail.split('@').first;
-        finalName = prefix.substring(0, 1).toUpperCase() + prefix.substring(1);
-      }
+    if (finalName.isEmpty) {
+      final prefix = cleanEmail.split('@').first;
+      finalName = prefix.substring(0, 1).toUpperCase() + prefix.substring(1);
     }
 
     final user = SupabaseUser(
       id: uid,
       email: cleanEmail,
       displayName: finalName,
-      role: role,
+      role: 'Thành viên',
       avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=' + cleanEmail,
     );
 
     _currentUser = user;
-    SupabaseService().upsertUser(user);
+    await SupabaseService().upsertUser(user);
     notifyListeners();
     return user;
   }
@@ -157,7 +144,7 @@ class FirebaseAuthService with ChangeNotifier {
   /// Đăng nhập bằng Google User (cho test suite)
   Future<SupabaseUser> signInWithGoogle({SupabaseUser? user}) async {
     _currentUser = user ?? predefinedAccounts[0];
-    SupabaseService().upsertUser(_currentUser!);
+    await SupabaseService().upsertUser(_currentUser!);
     notifyListeners();
     return _currentUser!;
   }
@@ -175,7 +162,7 @@ class FirebaseAuthService with ChangeNotifier {
       orElse: () => predefinedAccounts[0],
     );
     _currentUser = target;
-    SupabaseService().upsertUser(target);
+    await SupabaseService().upsertUser(target);
     notifyListeners();
     return _currentUser!;
   }

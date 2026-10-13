@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../struct/firebaseAuthService.dart';
-import '../struct/studySyncClient.dart';
 import '../struct/studyDocument.dart';
 import '../struct/studyCourse.dart';
 import '../database/study_document_dao.dart';
@@ -49,6 +48,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
   int _uploadedFileSize = 0;
 
   bool get _isEdit => widget.initialDocument != null;
+  bool get _isReadOnly => _isEdit && widget.initialDocument != null && !widget.initialDocument!.canEdit;
 
   @override
   void initState() {
@@ -74,8 +74,19 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
 
   void _loadCourses() {
     _courses = _courseDao.getAll();
-    if (_courses.isNotEmpty && _selectedCourseId == null) {
-      _selectedCourseId = _courses.first.id;
+    if (_courses.isNotEmpty) {
+      if (_selectedCourseId != null && _selectedCourseId!.isNotEmpty) {
+        Course? matched;
+        for (final c in _courses) {
+          if (c.id == _selectedCourseId || c.code.toLowerCase() == _selectedCourseId!.toLowerCase()) {
+            matched = c;
+            break;
+          }
+        }
+        _selectedCourseId = matched?.id ?? _courses.first.id;
+      } else {
+        _selectedCourseId = _courses.first.id;
+      }
     }
     setState(() {});
   }
@@ -380,6 +391,15 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
   }
 
   Future<void> _saveDocument() async {
+    if (_isReadOnly) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Bạn chỉ có quyền Xem (Viewer) đối với tài liệu này, không thể chỉnh sửa theo RLS!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
 
     final authService = FirebaseAuthService();
@@ -408,19 +428,24 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     final fileName = _uploadedFileName ?? (fileUrl.isNotEmpty ? 'TaiLieu_${DateTime.now().millisecondsSinceEpoch}.pdf' : '');
     final fileSize = _uploadedFileSize > 0 ? _uploadedFileSize : 10240;
 
-    final syncClient = StudySyncClient();
+    // Sync via SupabaseService
 
     if (_isEdit) {
       // Checklist 4: Cập nhật thông tin tài liệu trên Supabase & CSDL cục bộ
       final docId = widget.initialDocument!.id;
       try {
-        await _supabaseService.updateDocument(
+        final ok = await _supabaseService.updateDocument(
           documentId: docId,
           newTitle: _titleController.text.trim(),
           newDescription: _descController.text.trim(),
+          newCourseCode: courseCode,
+          newFileUrl: fileUrl,
           currentUserId: currentUser.id,
         );
-      } catch (_) {}
+        debugPrint('Kết quả cập nhật Supabase Cloud: $ok');
+      } catch (e) {
+        debugPrint('Lỗi cập nhật Supabase Cloud: $e');
+      }
 
       final updated = widget.initialDocument!.copyWith(
         title: _titleController.text.trim(),
@@ -434,7 +459,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         isPinned: _isPinned,
       );
       await _documentDao.update(updated);
-      unawaited(syncClient.saveToCloud(updated));
+      // Đã lưu trực tiếp lên Supabase Cloud ở trên
     } else {
       // Checklist 2 & 3: Thêm mới tài liệu vào Supabase và liên kết Firebase Storage
       final savedSupabaseDoc = await _supabaseService.insertDocument(
@@ -459,9 +484,13 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         tags: tags,
         deadline: _selectedDeadline,
         isPinned: _isPinned,
+        ownerId: savedSupabaseDoc.ownerId,
+        ownerEmail: savedSupabaseDoc.ownerEmail,
+        ownerName: savedSupabaseDoc.ownerName,
+        sharedPermission: 'owner',
       );
       await _documentDao.insert(newDoc);
-      unawaited(syncClient.saveToCloud(newDoc));
+      // Đã lưu trực tiếp lên Supabase Cloud ở trên
     }
 
     if (mounted) {
@@ -495,13 +524,16 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEdit ? 'Chỉnh sửa tài liệu' : 'Thêm tài liệu mới'),
+        title: Text(_isReadOnly 
+            ? 'Chi tiết tài liệu (Chỉ xem)' 
+            : (_isEdit ? 'Chỉnh sửa tài liệu' : 'Thêm tài liệu mới')),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.check_rounded),
-            tooltip: 'Lưu',
-            onPressed: _saveDocument,
-          ),
+          if (!_isReadOnly)
+            IconButton(
+              icon: const Icon(Icons.check_rounded),
+              tooltip: 'Lưu',
+              onPressed: _saveDocument,
+            ),
         ],
       ),
       body: Form(
@@ -509,6 +541,39 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            if (_isReadOnly) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F2F1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.teal.shade300),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.visibility_rounded, color: Colors.teal, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tài liệu được chia sẻ từ ${widget.initialDocument!.ownerName}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.teal),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Bạn đang ở chế độ xem thông tin tài liệu (Chính sách bảo mật RLS Supabase)',
+                            style: TextStyle(fontSize: 11, color: Colors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             // Banner Trang thai Firebase Google
             Builder(
               builder: (context) {
@@ -565,6 +630,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
             // Tieu de
             TextFormField(
               controller: _titleController,
+              readOnly: _isReadOnly,
               decoration: const InputDecoration(
                 labelText: 'Tiêu đề tài liệu *',
                 hintText: 'VD: Báo cáo Kiến trúc Cloud Supabase & Firebase',
@@ -576,7 +642,9 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
 
             // Chon Mon hoc
             DropdownButtonFormField<String>(
-              value: _selectedCourseId,
+              value: (_courses.any((c) => c.id == _selectedCourseId))
+                  ? _selectedCourseId
+                  : (_courses.isNotEmpty ? _courses.first.id : null),
               decoration: const InputDecoration(
                 labelText: 'Môn học / Học phần *',
                 border: OutlineInputBorder(),
@@ -593,7 +661,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                   ),
                 );
               }).toList(),
-              onChanged: (val) => setState(() => _selectedCourseId = val),
+              onChanged: _isReadOnly ? null : (val) => setState(() => _selectedCourseId = val),
             ),
             const SizedBox(height: 16),
 
@@ -602,7 +670,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<DocumentType>(
-                    value: _selectedType,
+                    value: DocumentType.values.contains(_selectedType) ? _selectedType : DocumentType.lecture,
                     decoration: const InputDecoration(
                       labelText: 'Loại tài liệu',
                       border: OutlineInputBorder(),
@@ -610,13 +678,13 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                     items: DocumentType.values.map((t) {
                       return DropdownMenuItem(value: t, child: Text(t.displayName));
                     }).toList(),
-                    onChanged: (val) => setState(() => _selectedType = val!),
+                    onChanged: _isReadOnly ? null : (val) => setState(() => _selectedType = val!),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<DocumentStatus>(
-                    value: _selectedStatus,
+                    value: DocumentStatus.values.contains(_selectedStatus) ? _selectedStatus : DocumentStatus.todo,
                     decoration: const InputDecoration(
                       labelText: 'Trạng thái',
                       border: OutlineInputBorder(),
@@ -624,7 +692,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                     items: DocumentStatus.values.map((s) {
                       return DropdownMenuItem(value: s, child: Text(s.displayName));
                     }).toList(),
-                    onChanged: (val) => setState(() => _selectedStatus = val!),
+                    onChanged: _isReadOnly ? null : (val) => setState(() => _selectedStatus = val!),
                   ),
                 ),
               ],
@@ -651,13 +719,14 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                   const Icon(Icons.arrow_forward_ios_rounded, size: 14),
                 ],
               ),
-              onTap: _pickDeadline,
+              onTap: _isReadOnly ? null : _pickDeadline,
             ),
             const SizedBox(height: 16),
 
             // Mo ta chi tiet
             TextFormField(
               controller: _descController,
+              readOnly: _isReadOnly,
               maxLines: 3,
               decoration: const InputDecoration(
                 labelText: 'Mô tả / Ghi chú chi tiết',
@@ -805,6 +874,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
             // Tags
             TextFormField(
               controller: _tagsController,
+              readOnly: _isReadOnly,
               decoration: const InputDecoration(
                 labelText: 'Thẻ tag (ngăn cách bằng dấu phẩy)',
                 hintText: 'KTPM, Firebase, Supabase, RLS',
@@ -818,19 +888,33 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
             SwitchListTile(
               title: const Text('Ghim tài liệu quan trọng lên đầu'),
               value: _isPinned,
-              onChanged: (val) => setState(() => _isPinned = val),
+              onChanged: _isReadOnly ? null : (val) => setState(() => _isPinned = val),
             ),
 
             const SizedBox(height: 24),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFD81B60),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            if (_isReadOnly) ...[
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.teal,
+                  side: const BorderSide(color: Colors.teal),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: const Text('QUAY LẠI (CHẾ ĐỘ CHỈ XEM)'),
+                onPressed: () => Navigator.pop(context),
               ),
-              icon: const Icon(Icons.save_rounded),
-              label: Text(_isEdit ? 'LƯU THAY ĐỔI' : 'TẠO TÀI LIỆU MỚI (LƯU SUPABASE)'),
-              onPressed: _saveDocument,
-            ),
+            ] else ...[
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFD81B60),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                icon: const Icon(Icons.save_rounded),
+                label: Text(_isEdit ? 'LƯU THAY ĐỔI' : 'TẠO TÀI LIỆU MỚI (LƯU SUPABASE)'),
+                onPressed: _saveDocument,
+              ),
+            ],
           ],
         ),
       ),

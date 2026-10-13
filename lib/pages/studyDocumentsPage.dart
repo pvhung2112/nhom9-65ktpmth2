@@ -57,33 +57,49 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
 
   @override
-
   void initState() {
-
     super.initState();
-
+    FirebaseAuthService().addListener(_onAuthChanged);
     _loadFromCloud();
+  }
 
+  @override
+  void dispose() {
+    FirebaseAuthService().removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  void _onAuthChanged() {
+    if (mounted) {
+      _loadFromCloud();
+    }
   }
 
 
 
   Future<void> _loadFromCloud() async {
-
     setState(() => _isLoadingFromCloud = true);
-
     try {
+      // 1. Xóa toàn bộ dữ liệu tạm cục bộ cũ để đồng bộ chính xác với Supabase
+      await _documentDao.clearAll();
 
-      await _syncClient.pullFromCloud();
+      final auth = FirebaseAuthService();
+      final currentUser = auth.currentUser;
 
-    } catch (_) {}
-
-    if (mounted) {
-
-      setState(() => _isLoadingFromCloud = false);
-
+      if (currentUser != null) {
+        // 2. Kéo CHỈ các tài liệu mà currentUser có quyền truy cập (Chủ sở hữu hoặc Được chia sẻ)
+        final accessibleDocs = await SupabaseService().fetchAccessibleStudyDocuments(currentUser);
+        for (var doc in accessibleDocs) {
+          await _documentDao.insert(doc);
+        }
+        debugPrint('Đã đồng bộ ${accessibleDocs.length} tài liệu hợp lệ cho ${currentUser.email}');
+      }
+    } catch (e) {
+      debugPrint('Load cloud error: $e');
     }
-
+    if (mounted) {
+      setState(() => _isLoadingFromCloud = false);
+    }
   }
 
 
@@ -527,11 +543,16 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                           },
 
                           onDelete: () async {
-
+                            final currentUserId = FirebaseAuthService().currentUser?.id ?? '';
+                            try {
+                              await SupabaseService().deleteDocument(
+                                documentId: doc.id,
+                                currentUserId: currentUserId,
+                              );
+                            } catch (e) {
+                              debugPrint('Lỗi xóa Supabase: $e');
+                            }
                             await _documentDao.delete(doc.id);
-
-                            unawaited(_syncClient.deleteFromCloud(doc.id));
-
                           },
 
                         ),

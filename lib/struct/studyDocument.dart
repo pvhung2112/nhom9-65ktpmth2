@@ -71,6 +71,14 @@ class StudyDocument {
   final bool isPinned;
   final bool isSynced;
 
+  // Thuộc tính phân quyền RLS & Đám mây Supabase
+  final String ownerId;
+  final String ownerEmail;
+  final String ownerName;
+  final String sharedPermission; // 'owner' | 'edit' | 'view'
+  final List<String> permissions; // Mảng danh sách quyền hạn cụ thể ['view', 'edit', 'delete', 'share']
+  final String sharedByEmail;
+
   StudyDocument({
     required this.id,
     required this.title,
@@ -85,8 +93,30 @@ class StudyDocument {
     DateTime? updatedAt,
     this.isPinned = false,
     this.isSynced = false,
+    this.ownerId = '',
+    this.ownerEmail = '',
+    this.ownerName = '',
+    this.sharedPermission = 'owner',
+    this.permissions = const [],
+    this.sharedByEmail = '',
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
+
+  bool get isOwner => sharedPermission == 'owner';
+  bool get canView => isOwner || permissions.contains('view') || sharedPermission == 'all' || true;
+  bool get canEdit => isOwner || permissions.contains('edit') || sharedPermission == 'edit' || sharedPermission == 'all' || sharedPermission.contains('edit');
+  bool get canDelete => isOwner || permissions.contains('delete') || sharedPermission == 'delete' || sharedPermission == 'all' || sharedPermission.contains('delete');
+  bool get canShare => isOwner || permissions.contains('share') || sharedPermission == 'share' || sharedPermission == 'all' || sharedPermission.contains('share');
+
+  String get permissionsSummary {
+    if (isOwner) return 'Toàn quyền (Chủ sở hữu)';
+    final List<String> list = [];
+    if (canView) list.add('Xem');
+    if (canEdit) list.add('Sửa');
+    if (canDelete) list.add('Xóa');
+    if (canShare) list.add('Chia sẻ');
+    return list.isNotEmpty ? list.join(' & ') : 'Chỉ xem';
+  }
 
   StudyDocument copyWith({
     String? id,
@@ -102,6 +132,12 @@ class StudyDocument {
     DateTime? updatedAt,
     bool? isPinned,
     bool? isSynced,
+    String? ownerId,
+    String? ownerEmail,
+    String? ownerName,
+    String? sharedPermission,
+    List<String>? permissions,
+    String? sharedByEmail,
   }) {
     return StudyDocument(
       id: id ?? this.id,
@@ -117,6 +153,12 @@ class StudyDocument {
       updatedAt: updatedAt ?? this.updatedAt,
       isPinned: isPinned ?? this.isPinned,
       isSynced: isSynced ?? this.isSynced,
+      ownerId: ownerId ?? this.ownerId,
+      ownerEmail: ownerEmail ?? this.ownerEmail,
+      ownerName: ownerName ?? this.ownerName,
+      sharedPermission: sharedPermission ?? this.sharedPermission,
+      permissions: permissions ?? this.permissions,
+      sharedByEmail: sharedByEmail ?? this.sharedByEmail,
     );
   }
 
@@ -135,6 +177,12 @@ class StudyDocument {
       'updated_at': updatedAt.toIso8601String(),
       'is_pinned': isPinned ? 1 : 0,
       'is_synced': isSynced ? 1 : 0,
+      'owner_id': ownerId,
+      'owner_email': ownerEmail,
+      'owner_name': ownerName,
+      'shared_permission': sharedPermission,
+      'permissions': jsonEncode(permissions),
+      'shared_by_email': sharedByEmail,
     };
   }
 
@@ -162,6 +210,12 @@ class StudyDocument {
       updatedAt: map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : DateTime.now(),
       isPinned: (map['is_pinned'] ?? map['isPinned'] ?? 0) == 1,
       isSynced: (map['is_synced'] ?? map['isSynced'] ?? 0) == 1,
+      ownerId: (map['owner_id'] ?? '') as String,
+      ownerEmail: (map['owner_email'] ?? '') as String,
+      ownerName: (map['owner_name'] ?? '') as String,
+      sharedPermission: (map['shared_permission'] ?? 'owner') as String,
+      permissions: map['permissions'] != null ? (map['permissions'] is List ? List<String>.from(map['permissions']) : (jsonDecode(map['permissions']) is List ? List<String>.from(jsonDecode(map['permissions'])) : [])) : [],
+      sharedByEmail: (map['shared_by_email'] ?? '') as String,
     );
   }
 }

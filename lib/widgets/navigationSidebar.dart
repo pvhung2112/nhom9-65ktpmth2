@@ -1,3 +1,5 @@
+import '../services/supabase_service.dart';
+import '../models/supabase_user.dart';
 import 'package:flutter/material.dart';
 import '../services/firebase_auth_service.dart';
 
@@ -197,38 +199,78 @@ class NavigationSidebar extends StatelessWidget {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                               title: const Row(
                                 children: [
-                                  Icon(Icons.security_rounded, color: Color(0xFFD81B60)),
+                                  Icon(Icons.switch_account_rounded, color: Color(0xFFD81B60)),
                                   SizedBox(width: 10),
-                                  Text('Chuyển đổi tài khoản (Checklist 6)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                                  Text('Tài khoản đã đăng ký (Supabase)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                                 ],
                               ),
                               content: SizedBox(
                                 width: 380,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: FirebaseAuthService.predefinedAccounts.map((acc) {
-                                    final isCurrent = auth.currentUser?.id == acc.id;
-                                    return ListTile(
-                                      dense: true,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                      selected: isCurrent,
-                                      selectedTileColor: const Color(0xFFF7D8DF),
-                                      leading: CircleAvatar(
-                                        radius: 14,
-                                        backgroundColor: isCurrent ? const Color(0xFFD81B60) : Colors.grey.shade400,
-                                        child: Text(acc.displayName[0], style: const TextStyle(color: Colors.white, fontSize: 11)),
-                                      ),
-                                      title: Text(acc.displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                      subtitle: Text(acc.email + ' • ' + acc.role, style: const TextStyle(fontSize: 10)),
-                                      trailing: isCurrent ? const Icon(Icons.check_circle_rounded, color: Color(0xFFD81B60), size: 18) : null,
-                                      onTap: () async {
-                                        Navigator.pop(ctx);
-                                        await auth.switchUser(acc.id);
-                                      },
+                                child: FutureBuilder<List<SupabaseUser>>(
+                                  future: SupabaseService().searchUsersOnline(''),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return const Padding(
+                                        padding: EdgeInsets.all(24),
+                                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                      );
+                                    }
+
+                                    final onlineUsers = snapshot.data ?? [];
+                                    if (onlineUsers.isEmpty) {
+                                      return const Padding(
+                                        padding: EdgeInsets.all(16),
+                                        child: Text('Chưa có người dùng nào khác trong CSDL Supabase.'),
+                                      );
+                                    }
+
+                                    return Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ...onlineUsers.map((acc) {
+                                          final isCurrent = auth.currentUser?.email.toLowerCase() == acc.email.toLowerCase();
+                                          return ListTile(
+                                            dense: true,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            selected: isCurrent,
+                                            selectedTileColor: const Color(0xFFF7D8DF),
+                                            leading: CircleAvatar(
+                                              radius: 14,
+                                              backgroundColor: isCurrent ? const Color(0xFFD81B60) : Colors.grey.shade400,
+                                              child: Text(acc.displayName.isNotEmpty ? acc.displayName[0] : 'U', style: const TextStyle(color: Colors.white, fontSize: 11)),
+                                            ),
+                                            title: Text(acc.displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                            subtitle: Text(acc.email, style: const TextStyle(fontSize: 11)),
+                                            trailing: isCurrent ? const Icon(Icons.check_circle_rounded, color: Color(0xFFD81B60), size: 18) : null,
+                                            onTap: () async {
+                                              Navigator.pop(ctx);
+                                              await auth.signInWithGoogle(user: acc);
+                                            },
+                                          );
+                                        }),
+                                        const Divider(height: 20),
+                                        ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFFD81B60),
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                          ),
+                                          icon: const Icon(Icons.add, size: 16),
+                                          label: const Text('➕ Đăng nhập bằng Gmail khác'),
+                                          onPressed: () async {
+                                            Navigator.pop(ctx);
+                                            await auth.signOut();
+                                          },
+                                        ),
+                                      ],
                                     );
-                                  }).toList(),
+                                  },
                                 ),
                               ),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+                              ],
                             ),
                           );
                         },

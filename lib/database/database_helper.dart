@@ -78,6 +78,11 @@ class AppDatabase {
     _notifyDocuments();
   }
 
+  Future<void> clearAllDocuments() async {
+    _documents.clear();
+    _notifyDocuments();
+  }
+
   StudyDocument? getDocument(String id) => _documents[id];
 
   List<StudyDocument> getAllDocuments() {

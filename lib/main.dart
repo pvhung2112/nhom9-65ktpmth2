@@ -1,3 +1,4 @@
+import 'services/supabase_service.dart';
 import 'package:flutter/material.dart';
 import 'services/firebase_auth_service.dart';
 import 'pages/authPage.dart';
@@ -7,7 +8,6 @@ import 'pages/studyDocumentsPage.dart';
 import 'pages/studyCoursesPage.dart';
 import 'pages/studyGoalsPage.dart';
 import 'pages/studyDocumentSearchPage.dart';
-import 'struct/studySyncClient.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,7 +68,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
   @override
   void initState() {
     super.initState();
-    StudySyncClient().pullFromCloud();
+    SupabaseService().fetchOnlineDocuments();
   }
 
   void _onNavigate(int index) {
