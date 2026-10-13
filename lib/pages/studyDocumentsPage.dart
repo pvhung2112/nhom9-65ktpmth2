@@ -1,3 +1,4 @@
+import '../services/supabase_service.dart';
 import '../struct/firebaseAuthService.dart';
 import 'dart:async';
 
@@ -708,13 +709,19 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
 
     void _showCloudDialog(BuildContext context) {
+    final supabase = SupabaseService();
+    final urlController = TextEditingController(text: supabase.supabaseUrl ?? '');
+    final keyController = TextEditingController(text: supabase.supabaseAnonKey ?? '');
+    bool isTestingSupabase = false;
+    String statusMessage = supabase.connectionStatus;
+
     showDialog(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             final auth = FirebaseAuthService();
-            final isSignedIn = auth.isSignedIn;
+            final user = auth.currentUser;
 
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -723,120 +730,47 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: isSignedIn ? const Color(0xFFF7D8DF) : Colors.amber.shade100,
+                      color: const Color(0xFFF7D8DF),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(
-                      isSignedIn ? Icons.cloud_sync_rounded : Icons.lock_outline_rounded,
-                      color: isSignedIn ? const Color(0xFFD81B60) : Colors.amber.shade900,
+                    child: const Icon(
+                      Icons.cloud_sync_rounded,
+                      color: Color(0xFFD81B60),
                       size: 24,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isSignedIn ? 'Quản trị Firebase Cloud' : 'Đăng nhập Firebase Google',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          'Quản trị Cloud & Supabase',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          isSignedIn ? 'Hệ thống Đám mây & Phân quyền IAM' : 'Cần đăng nhập để lưu tài liệu lên Cloud',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          'Firebase Auth, Storage & Supabase Cloud PostgreSQL',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (!isSignedIn) ...[
-                      // Giao diện khi CHƯA ĐĂNG NHẬP
+              content: SizedBox(
+                width: 520,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // User Card
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.amber.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline_rounded, color: Colors.amber.shade900, size: 22),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Bạn đang ở chế độ Chưa đăng nhập. Vui lòng đăng nhập Google để được phép thêm và lưu tài liệu trực tiếp vào Cloud Firestore.',
-                                style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        '🔑 Chọn tài khoản Google trong nhóm (IAM Roles):',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
-                      ),
-                      const SizedBox(height: 8),
-                      ...FirebaseAuthService.teamMembers.map((member) {
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(color: Colors.grey.shade300),
-                          ),
-                          child: ListTile(
-                            dense: true,
-                            leading: CircleAvatar(
-                              backgroundColor: const Color(0xFFF7D8DF),
-                              child: Text(
-                                member.displayName[0],
-                                style: const TextStyle(color: Color(0xFFD81B60), fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            title: Text(member.displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            subtitle: Text('${member.email}\n${member.role}', style: const TextStyle(fontSize: 11)),
-                            trailing: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD81B60),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                textStyle: const TextStyle(fontSize: 11),
-                              ),
-                              icon: const Icon(Icons.login_rounded, size: 14),
-                              label: const Text('Đăng nhập'),
-                              onPressed: () async {
-                                await auth.signInWithGoogle(user: member);
-                                setDialogState(() {});
-                                setState(() {});
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Đã đăng nhập Google thành công: ${member.displayName} (${member.role})'),
-                                      backgroundColor: Colors.green,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                          ),
-                        );
-                      }),
-                    ] else ...[
-                      // Giao diện khi ĐÃ ĐĂNG NHẬP
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.green.shade200),
+                          color: const Color(0xFFFFF0F5),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFF7D8DF)),
                         ),
                         child: Row(
                           children: [
@@ -844,7 +778,7 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                               radius: 20,
                               backgroundColor: const Color(0xFFD81B60),
                               child: Text(
-                                auth.currentUser!.displayName[0],
+                                (user != null && user.displayName.isNotEmpty) ? user.displayName[0].toUpperCase() : 'U',
                                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                               ),
                             ),
@@ -853,137 +787,195 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        auth.currentUser!.displayName,
-                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green.shade100,
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: const Text('Đã đăng nhập', style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
-                                      ),
-                                    ],
-                                  ),
-                                  Text(auth.currentUser!.email, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
                                   Text(
-                                    'Vai trò IAM: ${auth.currentUser!.role}',
+                                    user?.displayName ?? 'Người dùng',
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(user?.email ?? '', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                                  Text(
+                                    'Vai trò: ${user?.role ?? "Editor"}',
                                     style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFD81B60)),
                                   ),
                                 ],
                               ),
                             ),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                textStyle: const TextStyle(fontSize: 11),
+                              ),
+                              icon: const Icon(Icons.logout_rounded, size: 14),
+                              label: const Text('Đăng xuất'),
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                await auth.signOut();
+                              },
+                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
 
-                      // NÚT ĐĂNG XUẤT GOOGLE
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                          icon: const Icon(Icons.logout_rounded, size: 16),
-                          label: const Text('Đăng xuất tài khoản Google', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          onPressed: () async {
-                            await auth.signOut();
-                            setDialogState(() {});
-                            setState(() {});
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Đã đăng xuất tài khoản Google thành công!'),
-                                  duration: Duration(seconds: 2),
+                      const SizedBox(height: 16),
+
+                      // Supabase Online Cloud Card
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(Icons.cloud_done_rounded, color: Colors.green.shade700, size: 18),
                                 ),
-                              );
-                            }
-                          },
+                                const SizedBox(width: 10),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Kết nối Supabase Cloud Online',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                      Text(
+                                        'Lưu trữ Cơ sở dữ liệu quan hệ PostgreSQL trên Cloud',
+                                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: urlController,
+                              style: const TextStyle(fontSize: 12),
+                              decoration: InputDecoration(
+                                labelText: 'Supabase Project URL',
+                                hintText: 'https://xxxxxxxxxxxx.supabase.co',
+                                prefixIcon: const Icon(Icons.link_rounded, size: 18),
+                                isDense: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: keyController,
+                              style: const TextStyle(fontSize: 12),
+                              decoration: InputDecoration(
+                                labelText: 'Supabase Project Anon Key',
+                                hintText: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                                prefixIcon: const Icon(Icons.key_rounded, size: 18),
+                                isDense: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Trạng thái: $statusMessage',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: supabase.isOnlineMode ? Colors.green.shade700 : Colors.orange.shade800,
+                                    ),
+                                  ),
+                                ),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFD81B60),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    textStyle: const TextStyle(fontSize: 11),
+                                  ),
+                                  icon: isTestingSupabase
+                                      ? const SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                        )
+                                      : const Icon(Icons.check_circle_outline_rounded, size: 14),
+                                  label: const Text('Lưu & Kết nối Online'),
+                                  onPressed: isTestingSupabase
+                                      ? null
+                                      : () async {
+                                          setDialogState(() => isTestingSupabase = true);
+                                          supabase.configureOnline(
+                                            url: urlController.text.trim(),
+                                            anonKey: keyController.text.trim(),
+                                          );
+                                          final ok = await supabase.testConnection();
+                                          setDialogState(() {
+                                            isTestingSupabase = false;
+                                            statusMessage = supabase.connectionStatus;
+                                          });
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(ok
+                                                    ? 'Kết nối Supabase Cloud Online thành công!'
+                                                    : 'Kiểm tra kết nối: ${supabase.connectionStatus}'),
+                                                backgroundColor: ok ? Colors.green : Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
+
                       const SizedBox(height: 14),
 
-                      // Thông tin kết nối Cloud
+                      // Hướng dẫn Supabase
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Column(
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
-                                SizedBox(width: 8),
-                                Text('Dự án Firebase:', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                                Spacer(),
-                                Text('study-document-cloud', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(Icons.storage_rounded, color: Colors.orange, size: 18),
-                                SizedBox(width: 8),
-                                Text('Cơ sở dữ liệu:', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                                Spacer(),
-                                Text('Cloud Firestore (Active)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(Icons.cloud_upload_rounded, color: Colors.purple, size: 18),
-                                SizedBox(width: 8),
-                                Text('Lưu trữ Tệp tin:', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                                Spacer(),
-                                Text('Cloud Storage (Active)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Danh sách thành viên nhóm (Users and permissions)
-                      const Text(
-                        '👥 Danh sách Thành viên Dự án (IAM Roles):',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        decoration: BoxDecoration(
                           color: Colors.blue.shade50.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue.shade100),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.shade200),
                         ),
-                        child: const Column(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _MemberRoleRow(name: 'Phạm Văn Hưng', msv: '2351170598', role: 'Owner / Trưởng nhóm'),
-                            Divider(height: 10),
-                            _MemberRoleRow(name: 'Trịnh Trung Kiên', msv: '2251172396', role: 'Editor / Frontend'),
-                            Divider(height: 10),
-                            _MemberRoleRow(name: 'Đỗ Việt Tiến', msv: '2251243452', role: 'Editor / Frontend'),
-                            Divider(height: 10),
-                            _MemberRoleRow(name: 'Cao Đức Đạo', msv: '2351170581', role: 'Editor / Backend'),
-                            Divider(height: 10),
-                            _MemberRoleRow(name: 'Trương Tuấn Hải', msv: '2351170590', role: 'Editor / Cloud Research'),
+                            const Row(
+                              children: [
+                                Icon(Icons.info_outline_rounded, color: Colors.blue, size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Cách lấy URL & Key từ Supabase Dashboard:',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.blue),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '1. Trên supabase.com/dashboard/organizations, bấm "+ New organization" rồi tạo dự án mới.\n'
+                              '2. Mở SQL Editor, dán file schema.sql từ thư mục dự án và bấm Run.\n'
+                              '3. Vào Settings > API, copy "Project URL" và "Project API keys (anon public)" dán vào ô trên.',
+                              style: TextStyle(fontSize: 11, color: Colors.blue.shade900, height: 1.3),
+                            ),
                           ],
                         ),
                       ),
                     ],
-                  ],
+                  ),
                 ),
               ),
               actions: [
@@ -991,34 +983,6 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text('Đóng'),
                 ),
-                if (isSignedIn)
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFD81B60),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    icon: const Icon(Icons.sync_rounded, size: 16),
-                    label: const Text('Đồng bộ ngay'),
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Đang truyền dữ liệu lên Google Cloud Firestore...'),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                      final res = await StudySyncClient().syncWithCloud();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(res.message),
-                            backgroundColor: res.success ? Colors.green : Colors.red,
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                      }
-                    },
-                  ),
               ],
             );
           },
@@ -1026,82 +990,4 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
       },
     );
   }
-}
-
-class _MemberRoleRow extends StatelessWidget {
-
-  final String name;
-
-  final String msv;
-
-  final String role;
-
-
-
-  const _MemberRoleRow({required this.name, required this.msv, required this.role});
-
-
-
-  @override
-
-  Widget build(BuildContext context) {
-
-    return Row(
-
-      children: [
-
-        const Icon(Icons.person_pin_rounded, size: 14, color: Colors.blue),
-
-        const SizedBox(width: 6),
-
-        Expanded(
-
-          child: Text(
-
-            '$name ($msv)',
-
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black87),
-
-          ),
-
-        ),
-
-        Container(
-
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-
-          decoration: BoxDecoration(
-
-            color: role.startsWith('Owner') ? const Color(0xFFFCE4EC) : Colors.white,
-
-            borderRadius: BorderRadius.circular(6),
-
-            border: Border.all(color: role.startsWith('Owner') ? const Color(0xFFD81B60) : Colors.black12),
-
-          ),
-
-          child: Text(
-
-            role,
-
-            style: TextStyle(
-
-              fontSize: 10,
-
-              fontWeight: FontWeight.bold,
-
-              color: role.startsWith('Owner') ? const Color(0xFFD81B60) : Colors.black54,
-
-            ),
-
-          ),
-
-        ),
-
-      ],
-
-    );
-
-  }
-
 }

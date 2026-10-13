@@ -5,6 +5,7 @@ class SupabaseUser {
   final String email;
   final String displayName;
   final String avatarUrl;
+  final String role;
   final DateTime createdAt;
 
   SupabaseUser({
@@ -12,6 +13,7 @@ class SupabaseUser {
     required this.email,
     required this.displayName,
     this.avatarUrl = '',
+    this.role = 'Editor',
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -20,6 +22,7 @@ class SupabaseUser {
     'email': email,
     'display_name': displayName,
     'avatar_url': avatarUrl,
+    'role': role,
     'created_at': createdAt.toIso8601String(),
   };
 
@@ -28,6 +31,7 @@ class SupabaseUser {
     email: map['email'] ?? '',
     displayName: map['display_name'] ?? '',
     avatarUrl: map['avatar_url'] ?? '',
+    role: map['role'] ?? 'Editor',
     createdAt: map['created_at'] != null ? DateTime.parse(map['created_at']) : DateTime.now(),
   );
 

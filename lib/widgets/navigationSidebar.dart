@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/firebase_auth_service.dart';
 
 class NavigationSidebar extends StatelessWidget {
   final int selectedIndex;
@@ -22,7 +23,7 @@ class NavigationSidebar extends StatelessWidget {
     ];
 
     return Container(
-      width: 240,
+      width: 250,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -65,7 +66,7 @@ class NavigationSidebar extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Quản lý Tài liệu',
+                      'Quản lý Tài liệu Cloud',
                       style: TextStyle(
                         fontSize: 12,
                         color: theme.colorScheme.onSurfaceVariant,
@@ -126,34 +127,112 @@ class NavigationSidebar extends StatelessWidget {
             ),
           ),
 
-          // Student Info Footer
+          // User Profile Footer with dynamic user info & Logout Button
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant.withOpacity(0.4),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Color(0xFFD81B60),
-                    child: Text('H', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+            padding: const EdgeInsets.all(14),
+            child: ListenableBuilder(
+              listenable: FirebaseAuthService(),
+              builder: (context, _) {
+                final auth = FirebaseAuthService();
+                final user = auth.currentUser;
+                final displayName = user?.displayName ?? 'Khách';
+                final email = user?.email ?? 'Chưa đăng nhập';
+                final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+
+                return Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceVariant.withOpacity(0.35),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
                   ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Phạm Văn Hưng', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        Text('pvhung2112', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      ],
-                    ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: const Color(0xFFD81B60),
+                        child: Text(
+                          initial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Đăng xuất tài khoản',
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          size: 18,
+                          color: Color(0xFFD81B60),
+                        ),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                              title: const Row(
+                                children: [
+                                  Icon(Icons.logout_rounded, color: Color(0xFFD81B60)),
+                                  SizedBox(width: 10),
+                                  Text('Đăng xuất tài khoản', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              content: const Text('Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Hủy'),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFD81B60),
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Đăng xuất'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            await auth.signOut();
+                          }
+                        },
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],

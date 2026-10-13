@@ -1,11 +1,13 @@
-import 'struct/studySyncClient.dart';
 import 'package:flutter/material.dart';
+import 'services/firebase_auth_service.dart';
+import 'pages/authPage.dart';
 import 'widgets/navigationSidebar.dart';
 import 'pages/homePage.dart';
 import 'pages/studyDocumentsPage.dart';
 import 'pages/studyCoursesPage.dart';
 import 'pages/studyGoalsPage.dart';
 import 'pages/studyDocumentSearchPage.dart';
+import 'struct/studySyncClient.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,18 +20,37 @@ class CashewStudyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Quản lý Tài liệu Học tập - Cashew',
+      title: 'Quản lý Tài liệu Học tập - Cashew Cloud',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF9F9FB),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFD81B60), // Cashew Pink/Rose accent/
+          seedColor: const Color(0xFFD81B60), // Cashew Pink/Rose accent
           primary: const Color(0xFFD81B60),
           surface: Colors.white,
-          background: const Color(0xFFF9F9FB),
         ),
       ),
-      home: const MainLayoutScreen(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+/// Cổng kiểm soát xác thực: Bắt buộc đăng nhập Firebase trước khi vào ứng dụng
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: FirebaseAuthService(),
+      builder: (context, _) {
+        final auth = FirebaseAuthService();
+        if (!auth.isSignedIn) {
+          return const AuthPage();
+        }
+        return const MainLayoutScreen();
+      },
     );
   }
 }
@@ -42,7 +63,7 @@ class MainLayoutScreen extends StatefulWidget {
 }
 
 class _MainLayoutScreenState extends State<MainLayoutScreen> {
-  int _currentIndex = 0;
+  int _currentIndex = 1; // Mặc định mở tab Tài liệu học tập
 
   @override
   void initState() {
@@ -67,7 +88,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     ];
 
     if (isDesktop) {
-      // Cashew Responsive Desktop Layout with Left Navigation Sidebar
+      // Bố cục Desktop / Web với Sidebar điều hướng bên trái
       return Scaffold(
         body: Row(
           children: [
@@ -85,7 +106,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         ),
       );
     } else {
-      // Mobile Layout with Bottom Navigation Bar
+      // Bố cục Mobile với thanh điều hướng bên dưới
       return Scaffold(
         body: IndexedStack(
           index: _currentIndex,
