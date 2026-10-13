@@ -11,6 +11,7 @@ import '../struct/studyCourse.dart';
 import '../database/study_document_dao.dart';
 import '../database/study_course_dao.dart';
 import '../services/firebase_storage_service.dart';
+import '../services/local_file_picker.dart';
 import '../services/supabase_service.dart';
 
 class AddEditDocumentPage extends StatefulWidget {
@@ -118,7 +119,6 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     final owner = authService.currentUser!;
     final tempDocId = widget.initialDocument?.id ?? 'doc-${DateTime.now().millisecondsSinceEpoch}';
 
-    // Danh sach tep tin mau de nguoi dung chon nhanh hoac tu nhap
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -137,7 +137,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
+                      color: const Color(0xFFD81B60).withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.cloud_upload_rounded, color: Color(0xFFD81B60), size: 24),
@@ -160,10 +160,38 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 20),
+
+              // NUT CHON TEP TRUC TIEP TU MAY TINH
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD81B60),
+                  foregroundColor: Colors.white,
+                  elevation: 2,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.folder_open_rounded, size: 22),
+                label: const Text(
+                  'Chọn tệp từ máy tính của bạn (Mọi định dạng)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _pickAndUploadLocalFile(ownerId: owner.id, docId: tempDocId);
+                },
+              ),
+
               const SizedBox(height: 18),
-              const Text(
-                'Chọn tệp tin học tập để tải lên đám mây Firebase:',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text('HOẶC CHỌN NHANH TỆP MẪU', style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                ],
               ),
               const SizedBox(height: 12),
 
@@ -196,6 +224,69 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         );
       },
     );
+  }
+
+  /// Chon file that tu o cung may tinh (Windows File Dialog)
+  Future<void> _pickAndUploadLocalFile({
+    required String ownerId,
+    required String docId,
+  }) async {
+    try {
+      final picked = await pickFileFromComputer();
+      if (picked == null) return; // Nguoi dung cancel
+
+      setState(() => _isUploadingFile = true);
+
+      final result = await _storageService.uploadFile(
+        ownerId: ownerId,
+        documentId: docId,
+        fileName: picked.fileName,
+        fileBytes: picked.bytes,
+        mimeType: picked.mimeType,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isUploadingFile = false;
+          _uploadedStoragePath = result.storagePath;
+          _uploadedFileName = result.fileName;
+          _uploadedFileSize = result.fileSize;
+          _fileUrlController.text = result.fileUrl;
+
+          // Tu dong dien tieu de neu dang trong
+          if (_titleController.text.trim().isEmpty) {
+            final cleanName = picked.fileName.split('.').first.replaceAll('_', ' ').replaceAll('-', ' ');
+            _titleController.text = cleanName;
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Đã tải file "${picked.fileName}" từ máy tính lên Firebase Storage!\nĐường dẫn: ${result.storagePath}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF2E7D32),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploadingFile = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải tệp từ máy tính: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Widget _buildSampleFileOption(
