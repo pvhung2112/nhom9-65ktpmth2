@@ -38,6 +38,7 @@ class _AuthPageState extends State<AuthPage> {
           email: email,
           password: 'google_oauth_token',
           displayName: displayName,
+          isGoogleProvider: true,
         );
       } else {
         if (mounted) {
@@ -92,6 +93,7 @@ class _AuthPageState extends State<AuthPage> {
       await FirebaseAuthService().signInWithGoogleOAuth(
         email: email,
         password: 'google_direct_auth',
+        isGoogleProvider: false,
       );
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));

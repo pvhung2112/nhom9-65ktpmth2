@@ -58,6 +58,14 @@
                   return;
                 }
                 try {
+                  if (typeof firebase !== 'undefined' && firebase.auth) {
+                    try {
+                      const credential = firebase.auth.GoogleAuthProvider.credential(null, tokenResponse.access_token);
+                      await firebase.auth().signInWithCredential(credential);
+                    } catch (fbCredErr) {
+                      console.info("Firebase credential sign-in note:", fbCredErr);
+                    }
+                  }
                   const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                     headers: { Authorization: "Bearer " + tokenResponse.access_token }
                   });
