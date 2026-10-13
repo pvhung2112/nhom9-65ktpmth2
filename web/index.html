@@ -19,7 +19,8 @@
   <title>Cashew Study - Quản lý Tài liệu Học tập Cloud</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Firebase Web SDK for Google Sign-In via Popup (accounts.google.com) -->
+  <!-- Google Identity Services (GIS) & Firebase Auth SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
   <script>
@@ -32,13 +33,55 @@
     if (typeof firebase !== 'undefined') {
       try {
         firebase.initializeApp(firebaseConfig);
+        firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
       } catch (e) {
-        console.warn("Firebase init error:", e);
+        console.warn("Firebase init:", e);
       }
     }
 
+    const GOOGLE_CLIENT_ID = "344574429469-nmbnnl4piuqo6seljr1t2u6v248n6nbo.apps.googleusercontent.com";
+
+    // Ham goi Google OAuth 2.0 chinh thuc qua GIS (khong bi loi missing initial state)
     window.triggerGoogleSignIn = function() {
       return new Promise((resolve) => {
+        // Cach 1: Google Identity Services Token Client
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+          try {
+            const tokenClient = google.accounts.oauth2.initTokenClient({
+              client_id: GOOGLE_CLIENT_ID,
+              scope: 'openid email profile',
+              prompt: 'select_account',
+              callback: async (tokenResponse) => {
+                if (tokenResponse.error) {
+                  console.warn("Google OAuth error:", tokenResponse.error);
+                  resolve(JSON.stringify({ success: false, error: tokenResponse.error }));
+                  return;
+                }
+                try {
+                  const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: "Bearer " + tokenResponse.access_token }
+                  });
+                  const profile = await resp.json();
+                  resolve(JSON.stringify({
+                    success: true,
+                    uid: profile.sub,
+                    email: profile.email,
+                    displayName: profile.name || profile.email.split('@')[0],
+                    photoURL: profile.picture || ''
+                  }));
+                } catch (fetchErr) {
+                  resolve(JSON.stringify({ success: false, error: String(fetchErr) }));
+                }
+              }
+            });
+            tokenClient.requestAccessToken();
+            return;
+          } catch (gisErr) {
+            console.warn("GIS error:", gisErr);
+          }
+        }
+
+        // Cach 2: Firebase Auth signInWithPopup
         try {
           const provider = new firebase.auth.GoogleAuthProvider();
           provider.setCustomParameters({ prompt: 'select_account' });
@@ -53,21 +96,22 @@
                 photoURL: u.photoURL || '',
               }));
             })
-            .catch((err) => {
-              console.warn("Firebase popup error/closed:", err);
-              window.open('https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=344574429469-nmbnnl4piuqo6seljr1t2u6v248n6nbo.apps.googleusercontent.com&redirect_uri=https://study-document-cloud.firebaseapp.com/__/auth/handler&scope=openid+email+profile', '_blank');
-              resolve(JSON.stringify({
-                success: false,
-                code: err.code,
-                message: err.message
-              }));
+            .catch((popupErr) => {
+              console.warn("Firebase popup error:", popupErr);
+              resolve(JSON.stringify({ success: false, code: popupErr.code, message: popupErr.message }));
             });
-        } catch (e) {
-          window.open('https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=344574429469-nmbnnl4piuqo6seljr1t2u6v248n6nbo.apps.googleusercontent.com&redirect_uri=https://study-document-cloud.firebaseapp.com/__/auth/handler&scope=openid+email+profile', '_blank');
-          resolve(JSON.stringify({ success: false, message: e.toString() }));
+        } catch (fbErr) {
+          resolve(JSON.stringify({ success: false, message: String(fbErr) }));
         }
       });
     };
+
+    // Lang nghe su kien start_google_signin tu Flutter
+    window.addEventListener('start_google_signin', function() {
+      window.triggerGoogleSignIn().then(function(jsonStr) {
+        window.dispatchEvent(new CustomEvent('google_signin_completed', { detail: jsonStr }));
+      });
+    });
   </script>
 </head>
 <body>

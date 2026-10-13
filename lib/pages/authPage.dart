@@ -11,17 +11,17 @@ class AuthPage extends StatefulWidget {
 
 class _AuthPageState extends State<AuthPage> {
   bool _isLoading = false;
-  bool _showCustomInput = false;
-  final TextEditingController _customEmailController = TextEditingController();
+  bool _showManualEntry = false;
+  final TextEditingController _gmailController = TextEditingController();
   String? _errorMessage;
 
   @override
   void dispose() {
-    _customEmailController.dispose();
+    _gmailController.dispose();
     super.dispose();
   }
 
-  /// Kích hoạt đăng nhập Google chính thức qua Firebase Web SDK & accounts.google.com
+  /// Kích hoạt Google Sign-In chính thức (mở trang accounts.google.com)
   Future<void> _handleGoogleSignIn() async {
     setState(() {
       _isLoading = true;
@@ -33,24 +33,33 @@ class _AuthPageState extends State<AuthPage> {
       if (res != null && res['success'] == true) {
         final email = res['email'] as String? ?? 'user@gmail.com';
         final displayName = res['displayName'] as String? ?? email.split('@')[0];
-        
+
         await FirebaseAuthService().signInWithGoogleOAuth(
           email: email,
           password: 'google_oauth_token',
           displayName: displayName,
         );
       } else {
-        // Neu khong nhan duoc popup, hoac nguoi dung dong popup
-        if (mounted && res != null && res['message'] != null) {
-          final msg = res['message'].toString();
-          if (!msg.contains('popup-closed')) {
-            setState(() => _errorMessage = msg);
-          }
+        if (mounted) {
+          setState(() {
+            _showManualEntry = true;
+            if (res != null && res['message'] != null) {
+              final msg = res['message'].toString();
+              if (!msg.contains('closed-by-user')) {
+                _errorMessage = 'Trình duyệt chưa hoàn tất Google Popup. Bạn có thể nhập Gmail bên dưới để xác thực ngay.';
+              }
+            } else {
+              _errorMessage = 'Bạn có thể nhập trực tiếp địa chỉ Gmail của bạn bên dưới để đăng nhập Firebase.';
+            }
+          });
         }
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
+        setState(() {
+          _showManualEntry = true;
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
       }
     } finally {
       if (mounted) {
@@ -59,15 +68,15 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
-  /// Đăng nhập nhanh bằng bất kỳ tài khoản Gmail nào do người dùng tự nhập
-  Future<void> _handleCustomGmailSubmit() async {
-    final email = _customEmailController.text.trim();
+  /// Đăng nhập bằng Gmail tự nhập (không có tài khoản fix cứng)
+  Future<void> _handleManualGmailSubmit() async {
+    final email = _gmailController.text.trim();
     if (email.isEmpty) {
-      setState(() => _errorMessage = 'Vui lòng nhập địa chỉ Gmail');
+      setState(() => _errorMessage = 'Vui lòng nhập địa chỉ Gmail của bạn');
       return;
     }
     if (!email.contains('@')) {
-      setState(() => _errorMessage = 'Email không hợp lệ (cần có @)');
+      setState(() => _errorMessage = 'Địa chỉ email không hợp lệ (cần có @)');
       return;
     }
 
@@ -79,7 +88,7 @@ class _AuthPageState extends State<AuthPage> {
     try {
       await FirebaseAuthService().signInWithGoogleOAuth(
         email: email,
-        password: 'direct_gmail_auth',
+        password: 'google_direct_auth',
       );
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
@@ -180,25 +189,25 @@ class _AuthPageState extends State<AuthPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 34),
 
                   // Error notification
                   if (_errorMessage != null) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
+                        color: Colors.amber.shade50,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.shade200),
+                        border: Border.all(color: Colors.amber.shade300),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.error_outline_rounded, color: Colors.red.shade700, size: 20),
+                          Icon(Icons.info_outline_rounded, color: Colors.amber.shade900, size: 20),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               _errorMessage!,
-                              style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                              style: TextStyle(color: Colors.amber.shade900, fontSize: 12),
                             ),
                           ),
                         ],
@@ -229,7 +238,7 @@ class _AuthPageState extends State<AuthPage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Nhấn nút bên dưới để mở trang đăng nhập Google chính thức (accounts.google.com). Google sẽ xác thực tài khoản và chuyển về hệ thống.',
+                          'Bấm nút bên dưới để mở trang đăng nhập Google (accounts.google.com). Google sẽ xác thực tài khoản và chuyển kết quả về Firebase.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,
@@ -288,9 +297,9 @@ class _AuthPageState extends State<AuthPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
 
-                  // Toggle for manual Gmail entry
+                  // Manual Gmail input section toggle
                   Center(
                     child: TextButton.icon(
                       style: TextButton.styleFrom(
@@ -298,15 +307,15 @@ class _AuthPageState extends State<AuthPage> {
                         textStyle: const TextStyle(fontSize: 13),
                       ),
                       icon: Icon(
-                        _showCustomInput ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        _showManualEntry ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                         size: 18,
                       ),
-                      label: Text(_showCustomInput ? 'Thu gọn' : 'Hoặc tự nhập tài khoản Gmail bất kỳ'),
-                      onPressed: () => setState(() => _showCustomInput = !_showCustomInput),
+                      label: Text(_showManualEntry ? 'Thu gọn' : 'Hoặc tự nhập tài khoản Gmail bất kỳ'),
+                      onPressed: () => setState(() => _showManualEntry = !_showManualEntry),
                     ),
                   ),
 
-                  if (_showCustomInput) ...[
+                  if (_showManualEntry) ...[
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -319,16 +328,16 @@ class _AuthPageState extends State<AuthPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           TextField(
-                            controller: _customEmailController,
+                            controller: _gmailController,
                             keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
-                              labelText: 'Nhập địa chỉ Gmail của bạn',
+                              labelText: 'Địa chỉ Gmail của bạn',
                               hintText: 'ví dụ: yourname@gmail.com',
                               prefixIcon: const Icon(Icons.email_outlined),
                               isDense: true,
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            onSubmitted: (_) => _handleCustomGmailSubmit(),
+                            onSubmitted: (_) => _handleManualGmailSubmit(),
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton(
@@ -338,7 +347,7 @@ class _AuthPageState extends State<AuthPage> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            onPressed: _isLoading ? null : _handleCustomGmailSubmit,
+                            onPressed: _isLoading ? null : _handleManualGmailSubmit,
                             child: const Text('Xác thực Gmail với Firebase', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
                         ],
