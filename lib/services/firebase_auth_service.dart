@@ -5,6 +5,7 @@ import '../models/supabase_user.dart';
 import 'supabase_service.dart';
 
 /// Dịch vụ Xác thực Firebase Authentication
+/// Kết nối chặt chẽ và bắt buộc máy chủ Firebase Cloud phê duyệt danh tính
 class FirebaseAuthService with ChangeNotifier {
   static final FirebaseAuthService _instance = FirebaseAuthService._internal();
   factory FirebaseAuthService() => _instance;
@@ -49,7 +50,7 @@ class FirebaseAuthService with ChangeNotifier {
   ];
 
   /// Xác thực tài khoản với Firebase Cloud:
-  /// Tự động gửi yêu cầu lên máy chủ Firebase Cloud Authentication để tạo/đăng nhập user thật online
+  /// Kiểm tra trực tiếp với máy chủ Firebase Authentication. Nếu Firebase tắt provider hoặc từ chối, sẽ chặn và báo lỗi ngay!
   Future<SupabaseUser> signInWithGoogleOAuth({
     required String email,
     required String password,
@@ -65,49 +66,53 @@ class FirebaseAuthService with ChangeNotifier {
 
     String uid = 'firebase-uid-' + cleanEmail.hashCode.abs().toString();
 
-    // 1. Gửi lệnh tạo/đăng nhập trực tiếp lên máy chủ Firebase Cloud Authentication
-    try {
-      final signUpUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + firebaseApiKey);
-      final signUpRes = await http.post(
-        signUpUrl,
+    // 1. Gửi xác thực trực tiếp lên Firebase Cloud Authentication
+    final signUpUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + firebaseApiKey);
+    final signUpRes = await http.post(
+      signUpUrl,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': cleanEmail,
+        'password': 'StudyPassword123!',
+        'returnSecureToken': true,
+      }),
+    ).timeout(const Duration(seconds: 6));
+
+    if (signUpRes.statusCode == 200) {
+      final data = jsonDecode(signUpRes.body);
+      if (data['localId'] != null) {
+        uid = data['localId'] as String;
+      }
+    } else if (signUpRes.body.contains('EMAIL_EXISTS')) {
+      // Tài khoản đã tồn tại trên Firebase Cloud -> Tiến hành đăng nhập
+      final signInUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + firebaseApiKey);
+      final signInRes = await http.post(
+        signInUrl,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': cleanEmail,
           'password': 'StudyPassword123!',
           'returnSecureToken': true,
         }),
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(seconds: 6));
 
-      if (signUpRes.statusCode == 200) {
-        final data = jsonDecode(signUpRes.body);
+      if (signInRes.statusCode == 200) {
+        final data = jsonDecode(signInRes.body);
         if (data['localId'] != null) {
           uid = data['localId'] as String;
         }
-      } else if (signUpRes.body.contains('EMAIL_EXISTS')) {
-        // Tài khoản đã có trên Firebase Cloud -> Đăng nhập
-        final signInUrl = Uri.parse('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + firebaseApiKey);
-        final signInRes = await http.post(
-          signInUrl,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'email': cleanEmail,
-            'password': 'StudyPassword123!',
-            'returnSecureToken': true,
-          }),
-        ).timeout(const Duration(seconds: 4));
-
-        if (signInRes.statusCode == 200) {
-          final data = jsonDecode(signInRes.body);
-          if (data['localId'] != null) {
-            uid = data['localId'] as String;
-          }
-        }
+      } else {
+        throw Exception('Firebase Cloud từ chối đăng nhập: ' + signInRes.body);
       }
-    } catch (_) {
-      // Giữ kết nối liền mạch nếu offline
+    } else if (signUpRes.body.contains('OPERATION_NOT_ALLOWED')) {
+      // Khi phương thức đăng nhập bị tắt trên Firebase Console
+      throw Exception('LỖI FIREBASE CLOUD: Phương thức đăng nhập này đang bị TẮT (Disable) trên Firebase Console! Vui lòng vào tab Sign-in method gạt công tắc Enable và bấm Save.');
+    } else {
+      final body = signUpRes.body;
+      throw Exception('Firebase Authentication báo lỗi: ' + body);
     }
 
-    // 2. Xác định vai trò IAM và tên hiển thị
+    // 2. Xác định vai trò IAM và tên hiển thị khi Firebase chấp thuận
     String role = 'Editor';
     String finalName = displayName?.trim() ?? '';
 
