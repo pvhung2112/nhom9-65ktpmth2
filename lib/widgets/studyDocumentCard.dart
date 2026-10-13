@@ -1,3 +1,6 @@
+import '../services/supabase_service.dart';
+import '../models/document_permission.dart';
+import '../struct/firebaseAuthService.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../struct/studyDocument.dart';
@@ -173,6 +176,8 @@ class StudyDocumentCard extends StatelessWidget {
                               builder: (_) => AddEditDocumentPage(initialDocument: document),
                             ),
                           );
+                        } else if (val == 'share') {
+                          _showShareDialog(context);
                         } else if (val == 'delete' && onDelete != null) {
                           onDelete!();
                         }
@@ -184,7 +189,17 @@ class StudyDocumentCard extends StatelessWidget {
                             children: [
                               Icon(Icons.edit_outlined, size: 16),
                               SizedBox(width: 8),
-                              Text('Chỉnh sửa'),
+                              Text('Chỉnh sửa tài liệu'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'share',
+                          child: Row(
+                            children: [
+                              Icon(Icons.share_rounded, size: 16, color: Color(0xFF1976D2)),
+                              SizedBox(width: 8),
+                              Text('Chia sẻ quyền (RLS)', style: TextStyle(color: Color(0xFF1976D2))),
                             ],
                           ),
                         ),
@@ -361,6 +376,239 @@ class StudyDocumentCard extends StatelessWidget {
         label,
         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg),
       ),
+    );
+  }
+
+  void _showShareDialog(BuildContext context) {
+    final supabase = SupabaseService();
+    final auth = FirebaseAuthService();
+    final currentUser = auth.currentUser ?? FirebaseAuthService.predefinedAccounts[0];
+
+    final candidateUsers = FirebaseAuthService.predefinedAccounts
+        .where((u) => u.id != currentUser.id)
+        .toList();
+
+    String selectedUserId = candidateUsers.isNotEmpty ? candidateUsers[0].id : '';
+    PermissionType selectedType = PermissionType.view;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final activePermissions = supabase.getPermissionsForDocument(document.id);
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.share_rounded, color: Color(0xFF1976D2), size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Chia sẻ Tài liệu & Phân quyền', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text('Checklist 4: Cấp quyền view / edit trên Supabase', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Tài liệu: ${document.title}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          const SizedBox(height: 4),
+                          Text('Chủ sở hữu: ${currentUser.displayName} (${currentUser.role})', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Chọn thành viên trong nhóm để chia sẻ:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(height: 8),
+
+                    if (candidateUsers.isNotEmpty)
+                      DropdownButtonFormField<String>(
+                        value: selectedUserId,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          isDense: true,
+                        ),
+                        items: candidateUsers.map((u) {
+                          return DropdownMenuItem(
+                            value: u.id,
+                            child: Row(
+                              children: [
+                                CircleAvatar(radius: 10, child: Text(u.displayName[0])),
+                                const SizedBox(width: 8),
+                                Text('${u.displayName} (${u.role})', style: const TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) => setDialogState(() => selectedUserId = val ?? ''),
+                      ),
+
+                    const SizedBox(height: 14),
+                    const Text('Loại quyền hạn cấp cho thành viên:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile<PermissionType>(
+                            title: const Text('Chỉ xem (View)', style: TextStyle(fontSize: 12)),
+                            value: PermissionType.view,
+                            groupValue: selectedType,
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            onChanged: (val) => setDialogState(() => selectedType = val!),
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<PermissionType>(
+                            title: const Text('Chỉnh sửa (Edit)', style: TextStyle(fontSize: 12)),
+                            value: PermissionType.edit,
+                            groupValue: selectedType,
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            onChanged: (val) => setDialogState(() => selectedType = val!),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1976D2),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: const Icon(Icons.person_add_rounded, size: 18),
+                      label: const Text('CẤP QUYỀN TRUY CẬP (LƯU SUPABASE)'),
+                      onPressed: selectedUserId.isEmpty ? null : () async {
+                        try {
+                          await supabase.shareDocument(
+                            documentId: document.id,
+                            targetUserId: selectedUserId,
+                            permissionType: selectedType,
+                            currentUser: currentUser,
+                          );
+                          setDialogState(() {});
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Đã cấp quyền ${selectedType.name.toUpperCase()} trên Supabase Cloud!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (err) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Lỗi: $err'), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      },
+                    ),
+
+                    if (activePermissions.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Text('Danh sách đã được cấp quyền trên Supabase:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 140),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: activePermissions.length,
+                          itemBuilder: (ctx, i) {
+                            final perm = activePermissions[i];
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '${perm.userName} (${perm.userEmail})',
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: perm.permissionType == PermissionType.edit ? Colors.orange.shade100 : Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      perm.permissionType.name.toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: perm.permissionType == PermissionType.edit ? Colors.orange.shade900 : Colors.green.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 18),
+                                    tooltip: 'Thu hồi quyền',
+                                    onPressed: () async {
+                                      await supabase.revokePermission(
+                                        documentId: document.id,
+                                        targetUserId: perm.userId,
+                                        currentUserId: currentUser.id,
+                                      );
+                                      setDialogState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Đóng'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

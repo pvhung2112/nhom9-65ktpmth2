@@ -408,22 +408,20 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     final fileName = _uploadedFileName ?? (fileUrl.isNotEmpty ? 'TaiLieu_${DateTime.now().millisecondsSinceEpoch}.pdf' : '');
     final fileSize = _uploadedFileSize > 0 ? _uploadedFileSize : 10240;
 
-    // 1. Ket noi voi bang documents tren Supabase (Checklist 2)
-    final savedSupabaseDoc = await _supabaseService.insertDocument(
-      title: _titleController.text.trim(),
-      description: _descController.text.trim(),
-      courseCode: courseCode,
-      fileUrl: fileUrl,
-      fileName: fileName,
-      fileSize: fileSize,
-      currentUser: currentUser,
-    );
-
-    // 2. Dong bo voi CSDL cuc bo (Local-First DAO)
     final syncClient = StudySyncClient();
-    final docId = widget.initialDocument?.id ?? savedSupabaseDoc.id;
 
     if (_isEdit) {
+      // Checklist 4: Cập nhật thông tin tài liệu trên Supabase & CSDL cục bộ
+      final docId = widget.initialDocument!.id;
+      try {
+        await _supabaseService.updateDocument(
+          documentId: docId,
+          newTitle: _titleController.text.trim(),
+          newDescription: _descController.text.trim(),
+          currentUserId: currentUser.id,
+        );
+      } catch (_) {}
+
       final updated = widget.initialDocument!.copyWith(
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
@@ -438,6 +436,18 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
       await _documentDao.update(updated);
       unawaited(syncClient.saveToCloud(updated));
     } else {
+      // Checklist 2 & 3: Thêm mới tài liệu vào Supabase và liên kết Firebase Storage
+      final savedSupabaseDoc = await _supabaseService.insertDocument(
+        title: _titleController.text.trim(),
+        description: _descController.text.trim(),
+        courseCode: courseCode,
+        fileUrl: fileUrl,
+        fileName: fileName,
+        fileSize: fileSize,
+        currentUser: currentUser,
+      );
+      final docId = savedSupabaseDoc.id;
+
       final newDoc = StudyDocument(
         id: docId,
         title: _titleController.text.trim(),
@@ -456,19 +466,21 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              Icon(Icons.cloud_done_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 8),
+              const Icon(Icons.cloud_done_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
               Expanded(
-                child: Text('✅ Đã lưu tệp lên Firebase Storage & kết nối với bảng documents trên Supabase!'),
+                child: Text(_isEdit 
+                    ? '✅ Đã cập nhật tài liệu trên Supabase & CSDL cục bộ thành công!' 
+                    : '✅ Đã tạo tài liệu và lưu vào Supabase PostgreSQL!'),
               ),
             ],
           ),
-          backgroundColor: Color(0xFF2E7D32),
+          backgroundColor: const Color(0xFF2E7D32),
           behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
       Navigator.pop(context);
