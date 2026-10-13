@@ -16,10 +16,10 @@ class SupabaseService {
   }
 
   // Cấu hình kết nối Supabase Cloud Online (từ dashboard supabase.com)
-  String? _supabaseUrl;
-  String? _supabaseAnonKey;
+  String? _supabaseUrl = 'https://tiosyakbmkcobgaobbbc.supabase.co';
+  String? _supabaseAnonKey = 'sb_publishable_T4wqS-hOt5oAsLixtDS0sQ_dR4z2wDU';
   bool _isOnlineSyncing = false;
-  String _connectionStatus = 'Chế độ Local Cache';
+  String _connectionStatus = 'Đã kết nối Supabase Cloud Online (tiosyakbmkcobgaobbbc)';
 
   String? get supabaseUrl => _supabaseUrl;
   String? get supabaseAnonKey => _supabaseAnonKey;
