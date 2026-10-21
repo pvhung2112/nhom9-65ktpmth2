@@ -8,6 +8,7 @@ import 'pages/studyDocumentsPage.dart';
 import 'pages/studyCoursesPage.dart';
 import 'pages/studyGoalsPage.dart';
 import 'pages/studyDocumentSearchPage.dart';
+import 'pages/borrowManagementPage.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,6 +86,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
       const CoursesPage(),
       const StudyGoalsPage(),
       const DocumentSearchPage(),
+      const BorrowManagementPage(),
     ];
 
     if (isDesktop) {
@@ -121,6 +123,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
             NavigationDestination(icon: Icon(Icons.school_rounded), label: 'Môn học'),
             NavigationDestination(icon: Icon(Icons.flag_rounded), label: 'Mục tiêu'),
             NavigationDestination(icon: Icon(Icons.search_rounded), label: 'Tìm kiếm'),
+            NavigationDestination(icon: Icon(Icons.swap_horiz_rounded), label: 'Mượn/Trả'),
           ],
         ),
       );

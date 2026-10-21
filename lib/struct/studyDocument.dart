@@ -79,6 +79,15 @@ class StudyDocument {
   final List<String> permissions; // Mảng danh sách quyền hạn cụ thể ['view', 'edit', 'delete', 'share']
   final String sharedByEmail;
 
+  // Tính năng TH2: Định vị vật lý & Quản lý mượn/trả
+  final String physicalLocation;
+  final double latitude;
+  final double longitude;
+  final String shelfLocation;
+  final String borrowStatus; // 'available' | 'borrowed' | 'reserved'
+  final String currentBorrowerName;
+  final DateTime? borrowDueDate;
+
   StudyDocument({
     required this.id,
     required this.title,
@@ -99,6 +108,13 @@ class StudyDocument {
     this.sharedPermission = 'owner',
     this.permissions = const [],
     this.sharedByEmail = '',
+    this.physicalLocation = 'Thư viện Trung tâm - Tòa H1',
+    this.latitude = 10.8700,
+    this.longitude = 106.8030,
+    this.shelfLocation = 'Kệ A3 - Ngăn 02',
+    this.borrowStatus = 'available',
+    this.currentBorrowerName = '',
+    this.borrowDueDate,
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
@@ -138,6 +154,13 @@ class StudyDocument {
     String? sharedPermission,
     List<String>? permissions,
     String? sharedByEmail,
+    String? physicalLocation,
+    double? latitude,
+    double? longitude,
+    String? shelfLocation,
+    String? borrowStatus,
+    String? currentBorrowerName,
+    DateTime? borrowDueDate,
   }) {
     return StudyDocument(
       id: id ?? this.id,
@@ -159,6 +182,13 @@ class StudyDocument {
       sharedPermission: sharedPermission ?? this.sharedPermission,
       permissions: permissions ?? this.permissions,
       sharedByEmail: sharedByEmail ?? this.sharedByEmail,
+      physicalLocation: physicalLocation ?? this.physicalLocation,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      shelfLocation: shelfLocation ?? this.shelfLocation,
+      borrowStatus: borrowStatus ?? this.borrowStatus,
+      currentBorrowerName: currentBorrowerName ?? this.currentBorrowerName,
+      borrowDueDate: borrowDueDate ?? this.borrowDueDate,
     );
   }
 
@@ -183,6 +213,13 @@ class StudyDocument {
       'shared_permission': sharedPermission,
       'permissions': jsonEncode(permissions),
       'shared_by_email': sharedByEmail,
+      'physical_location': physicalLocation,
+      'latitude': latitude,
+      'longitude': longitude,
+      'shelf_location': shelfLocation,
+      'borrow_status': borrowStatus,
+      'current_borrower_name': currentBorrowerName,
+      'borrow_due_date': borrowDueDate?.toIso8601String(),
     };
   }
 
@@ -216,6 +253,13 @@ class StudyDocument {
       sharedPermission: (map['shared_permission'] ?? 'owner') as String,
       permissions: map['permissions'] != null ? (map['permissions'] is List ? List<String>.from(map['permissions']) : (jsonDecode(map['permissions']) is List ? List<String>.from(jsonDecode(map['permissions'])) : [])) : [],
       sharedByEmail: (map['shared_by_email'] ?? '') as String,
+      physicalLocation: (map['physical_location'] ?? 'Thư viện Trung tâm - Tòa H1') as String,
+      latitude: (map['latitude'] as num?)?.toDouble() ?? 10.8700,
+      longitude: (map['longitude'] as num?)?.toDouble() ?? 106.8030,
+      shelfLocation: (map['shelf_location'] ?? 'Kệ A3 - Ngăn 02') as String,
+      borrowStatus: (map['borrow_status'] ?? 'available') as String,
+      currentBorrowerName: (map['current_borrower_name'] ?? '') as String,
+      borrowDueDate: map['borrow_due_date'] != null ? DateTime.tryParse(map['borrow_due_date'].toString()) : null,
     );
   }
 }

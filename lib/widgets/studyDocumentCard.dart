@@ -7,6 +7,10 @@ import '../services/firebase_auth_service.dart';
 import '../services/supabase_service.dart';
 import '../struct/studyCourse.dart';
 import '../struct/studyDocument.dart';
+import '../models/borrow_request.dart';
+import '../models/physical_location.dart';
+import '../widgets/interactive_location_map.dart';
+import '../services/notification_service.dart';
 import '../pages/addEditStudyDocumentPage.dart';
 class StudyDocumentCard extends StatelessWidget {
   final StudyDocument document;
@@ -223,6 +227,10 @@ class StudyDocumentCard extends StatelessWidget {
                           onDelete!();
                         } else if (val == 'view_info') {
                           _showViewOnlyDialog(context);
+                        } else if (val == 'view_map') {
+                          _showLocationMapDialog(context);
+                        } else if (val == 'borrow') {
+                          _showBorrowDialog(context);
                         }
                       },
                       itemBuilder: (context) {
@@ -293,6 +301,28 @@ class StudyDocumentCard extends StatelessWidget {
                                   Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
                                   SizedBox(width: 8),
                                   Text('Xóa tài liệu (Quyền Deleter)', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ));
+                          }
+                          items.add(const PopupMenuItem(
+                            value: 'view_map',
+                            child: Row(
+                              children: [
+                                Icon(Icons.map_rounded, size: 16, color: Colors.teal),
+                                SizedBox(width: 8),
+                                Text('Xem bản đồ vị trí (TH2)', style: TextStyle(color: Colors.teal)),
+                              ],
+                            ),
+                          ));
+                          if (!document.isOwner) {
+                            items.add(const PopupMenuItem(
+                              value: 'borrow',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.swap_horiz_rounded, size: 16, color: Color(0xFFD81B60)),
+                                  SizedBox(width: 8),
+                                  Text('Yêu cầu mượn tài liệu', style: TextStyle(color: Color(0xFFD81B60))),
                                 ],
                               ),
                             ));
@@ -533,6 +563,195 @@ class StudyDocumentCard extends StatelessWidget {
     );
   }
 
+  void _showLocationMapDialog(BuildContext context) {
+    final loc = PhysicalLocation(
+      locationName: document.physicalLocation.isNotEmpty ? document.physicalLocation : 'Thư viện Trung tâm - Tòa H1',
+      shelfNumber: document.shelfLocation.isNotEmpty ? document.shelfLocation : 'Kệ A3 - Ngăn 02',
+      latitude: document.latitude != 0.0 ? document.latitude : 10.8700,
+      longitude: document.longitude != 0.0 ? document.longitude : 106.8030,
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(16),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InteractiveLocationMap(
+                location: loc,
+                documentTitle: document.title,
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Đóng'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBorrowDialog(BuildContext context) {
+    final auth = FirebaseAuthService();
+    final currentUser = auth.currentUser;
+    if (currentUser == null) return;
+
+    final noteController = TextEditingController();
+    int borrowDays = 7;
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.pink.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.swap_horiz_rounded, color: Color(0xFFD81B60), size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Yêu cầu Mượn Tài liệu', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text('Gửi yêu cầu mượn bản cứng/vật lý đến Chủ sở hữu', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 450,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Tài liệu: ${document.title}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          const SizedBox(height: 4),
+                          Text('Chủ sở hữu: ${document.ownerName} (${document.ownerEmail})', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          const SizedBox(height: 4),
+                          Text('Vị trí hiện tại: ${document.physicalLocation} (${document.shelfLocation})', style: const TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Thời hạn mượn dự kiến:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [7, 14, 30].map((days) {
+                        final isSel = borrowDays == days;
+                        return ChoiceChip(
+                          label: Text('$days ngày'),
+                          selected: isSel,
+                          selectedColor: const Color(0xFFD81B60),
+                          labelStyle: TextStyle(color: isSel ? Colors.white : Colors.black87, fontSize: 12),
+                          onSelected: (_) => setDialogState(() => borrowDays = days),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Ghi chú cho Chủ sở hữu (tùy chọn):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: noteController,
+                      decoration: InputDecoration(
+                        hintText: 'Ví dụ: Mình mượn để ôn thi giữa kỳ tuần tới...',
+                        hintStyle: const TextStyle(fontSize: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        isDense: true,
+                      ),
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD81B60),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: isSubmitting
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.send_rounded, size: 16),
+                  label: Text(isSubmitting ? 'Đang gửi...' : 'GỬI YÊU CẦU MƯỢN'),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          setDialogState(() => isSubmitting = true);
+                          final req = BorrowRequest(
+                            id: 'br-${DateTime.now().millisecondsSinceEpoch}',
+                            documentId: document.id,
+                            documentTitle: document.title,
+                            courseCode: document.courseId,
+                            ownerId: document.ownerId,
+                            ownerName: document.ownerName,
+                            ownerEmail: document.ownerEmail,
+                            borrowerId: currentUser.id,
+                            borrowerName: currentUser.displayName,
+                            borrowerEmail: currentUser.email,
+                            dueDate: DateTime.now().add(Duration(days: borrowDays)),
+                            notes: noteController.text.trim(),
+                          );
+
+                          final ok = await SupabaseService().createBorrowRequest(req);
+                          setDialogState(() => isSubmitting = false);
+                          if (context.mounted) {
+                            Navigator.pop(ctx);
+                            NotificationService().addNotification(
+                              title: 'Đã gửi yêu cầu mượn',
+                              message: 'Đã gửi yêu cầu mượn tài liệu "${document.title}" đến ${document.ownerName}',
+                              color: Colors.green,
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(ok
+                                    ? '✅ Đã gửi yêu cầu mượn thành công! Vui lòng chờ ${document.ownerName} phê duyệt.'
+                                    : '❌ Có lỗi khi gửi yêu cầu mượn lên hệ thống!'),
+                                backgroundColor: ok ? Colors.green.shade700 : Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showViewOnlyDialog(BuildContext context) {
     final courseDao = CourseDao();
     final Course? resCourse = course ?? (document.courseId.isNotEmpty ? courseDao.getById(document.courseId) : null);
@@ -676,6 +895,69 @@ class StudyDocumentCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                 ],
+
+                // 5.5 Vị trí vật lý & Bản đồ Kệ sách TH2
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      InkWell(
+                        onTap: () => _showLocationMapDialog(context),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.teal.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.location_on_rounded, size: 13, color: Colors.teal),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${document.physicalLocation} (${document.shelfLocation})',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.teal),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.teal.shade100,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.map_rounded, size: 10, color: Colors.teal),
+                                    SizedBox(width: 2),
+                                    Text('Bản đồ', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.teal)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (!document.isOwner)
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD81B60),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.swap_horiz_rounded, size: 13),
+                          label: const Text('Mượn tài liệu', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          onPressed: () => _showBorrowDialog(context),
+                        ),
+                    ],
+                  ),
+                ),
 
                 // 6. Thẻ Tags
                 if (document.tags.isNotEmpty) ...[

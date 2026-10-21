@@ -22,6 +22,7 @@ class NavigationSidebar extends StatelessWidget {
       {'icon': Icons.school_rounded, 'label': 'Môn học', 'index': 2},
       {'icon': Icons.flag_rounded, 'label': 'Mục tiêu', 'index': 3},
       {'icon': Icons.search_rounded, 'label': 'Tìm kiếm', 'index': 4},
+      {'icon': Icons.swap_horiz_rounded, 'label': 'Mượn / Trả (TH2)', 'index': 5},
     ];
 
     return Container(

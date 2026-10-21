@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../models/supabase_user.dart';
 import '../models/supabase_document.dart';
 import '../models/document_permission.dart';
+import '../models/borrow_request.dart';
 import 'firebase_auth_service.dart';
 
 /// Dịch vụ Quản lý Cơ sở dữ liệu Supabase Cloud (PostgreSQL & RLS)
@@ -34,6 +35,7 @@ class SupabaseService {
   final Map<String, SupabaseDocument> _documentsTable = {};
   final Map<String, SupabaseUser> _usersTable = {};
   final Map<String, DocumentPermission> _permissionsTable = {};
+  final Map<String, BorrowRequest> _borrowRequestsTable = {};
 
   final StreamController<List<SupabaseDocument>> _docsStreamController =
       StreamController<List<SupabaseDocument>>.broadcast();
@@ -808,4 +810,101 @@ class SupabaseService {
     }
   }
 
+  // ================= TH2: QUẢN LÝ MƯỢN / TRẢ TÀI LIỆU =================
+  Future<bool> createBorrowRequest(BorrowRequest request) async {
+    _borrowRequestsTable[request.id] = request;
+
+    if (isOnlineMode) {
+      try {
+        final uri = Uri.parse('$_supabaseUrl/rest/v1/borrow_requests');
+        final res = await http.post(
+          uri,
+          headers: {
+            'apikey': _supabaseAnonKey!,
+            'Authorization': 'Bearer $_supabaseAnonKey',
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates',
+          },
+          body: jsonEncode(request.toMap()),
+        ).timeout(const Duration(seconds: 5));
+        return res.statusCode >= 200 && res.statusCode < 300;
+      } catch (e) {
+        debugPrint('Lỗi createBorrowRequest Supabase: $e');
+      }
+    }
+    return true;
+  }
+
+  Future<List<BorrowRequest>> fetchBorrowRequests({String? borrowerEmail, String? ownerEmail}) async {
+    final List<BorrowRequest> results = [];
+
+    if (isOnlineMode) {
+      try {
+        final uri = Uri.parse('$_supabaseUrl/rest/v1/borrow_requests?select=*&order=request_date.desc');
+        final res = await http.get(
+          uri,
+          headers: {
+            'apikey': _supabaseAnonKey!,
+            'Authorization': 'Bearer $_supabaseAnonKey',
+          },
+        ).timeout(const Duration(seconds: 5));
+
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          final List<dynamic> list = jsonDecode(res.body);
+          for (var item in list) {
+            final req = BorrowRequest.fromMap(Map<String, dynamic>.from(item));
+            _borrowRequestsTable[req.id] = req;
+          }
+        }
+      } catch (e) {
+        debugPrint('Lỗi fetchBorrowRequests: $e');
+      }
+    }
+
+    // Lọc theo borrower hoặc owner
+    for (var req in _borrowRequestsTable.values) {
+      if (borrowerEmail != null && req.borrowerEmail.toLowerCase() == borrowerEmail.toLowerCase()) {
+        results.add(req);
+      } else if (ownerEmail != null && req.ownerEmail.toLowerCase() == ownerEmail.toLowerCase()) {
+        results.add(req);
+      } else if (borrowerEmail == null && ownerEmail == null) {
+        results.add(req);
+      }
+    }
+
+    results.sort((a, b) => b.requestDate.compareTo(a.requestDate));
+    return results;
+  }
+
+  Future<bool> updateBorrowRequestStatus(String requestId, BorrowStatus newStatus) async {
+    if (_borrowRequestsTable.containsKey(requestId)) {
+      final old = _borrowRequestsTable[requestId]!;
+      _borrowRequestsTable[requestId] = old.copyWith(
+        status: newStatus,
+        returnDate: newStatus == BorrowStatus.returned ? DateTime.now() : null,
+      );
+    }
+
+    if (isOnlineMode) {
+      try {
+        final uri = Uri.parse('$_supabaseUrl/rest/v1/borrow_requests?id=eq.$requestId');
+        final res = await http.patch(
+          uri,
+          headers: {
+            'apikey': _supabaseAnonKey!,
+            'Authorization': 'Bearer $_supabaseAnonKey',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'status': newStatus.name,
+            if (newStatus == BorrowStatus.returned) 'return_date': DateTime.now().toIso8601String(),
+          }),
+        ).timeout(const Duration(seconds: 5));
+        return res.statusCode >= 200 && res.statusCode < 300;
+      } catch (e) {
+        debugPrint('Lỗi updateBorrowRequestStatus: $e');
+      }
+    }
+    return true;
+  }
 }

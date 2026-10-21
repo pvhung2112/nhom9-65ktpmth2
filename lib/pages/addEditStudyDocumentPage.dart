@@ -33,6 +33,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
   late TextEditingController _descController;
   late TextEditingController _fileUrlController;
   late TextEditingController _tagsController;
+  late TextEditingController _physicalLocationController;
+  late TextEditingController _shelfLocationController;
 
   String? _selectedCourseId;
   DocumentType _selectedType = DocumentType.lecture;
@@ -58,6 +60,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     _descController = TextEditingController(text: doc?.description ?? '');
     _fileUrlController = TextEditingController(text: doc?.fileUrl ?? '');
     _tagsController = TextEditingController(text: doc?.tags.join(', ') ?? '');
+    _physicalLocationController = TextEditingController(text: doc?.physicalLocation ?? 'Thư viện Trung tâm - Tòa H1');
+    _shelfLocationController = TextEditingController(text: doc?.shelfLocation ?? 'Kệ A3 - Ngăn 02');
     _selectedCourseId = doc?.courseId;
     _selectedType = doc?.type ?? DocumentType.lecture;
     _selectedStatus = doc?.status ?? DocumentStatus.todo;
@@ -97,6 +101,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     _descController.dispose();
     _fileUrlController.dispose();
     _tagsController.dispose();
+    _physicalLocationController.dispose();
+    _shelfLocationController.dispose();
     super.dispose();
   }
 

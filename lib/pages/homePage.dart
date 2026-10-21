@@ -4,6 +4,9 @@ import '../database/study_document_dao.dart';
 import '../widgets/studyDocumentCard.dart';
 import 'addEditStudyDocumentPage.dart';
 import 'studyDocumentSearchPage.dart';
+import '../services/recommendation_service.dart';
+import '../widgets/recommendation_carousel.dart';
+import '../services/firebase_auth_service.dart';
 
 class HomePage extends StatelessWidget {
   final ValueChanged<int> onNavigate;
@@ -28,6 +31,18 @@ class HomePage extends StatelessWidget {
 
           return CustomScrollView(
             slivers: [
+              // Khối Gợi ý Thông minh TH2 (Recommendation AI)
+              SliverToBoxAdapter(
+                child: RecommendationCarousel(
+                  recommendations: RecommendationService().getRecommendations(
+                    allDocuments: docs,
+                    currentUserId: FirebaseAuthService().currentUser?.id ?? '',
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
               // Top Header Bar
               SliverToBoxAdapter(
                 child: Padding(
