@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Quản lý Tài liệu Học tập - Cashew Cloud">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="study_document_app">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Cashew Study - Quản lý Tài liệu Học tập Cloud</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Google Identity Services (GIS) & Firebase Auth SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBLEAEsYQ9LiMKQFtYoUJfvn7fXnf19zXE",
+      authDomain: "study-document-cloud.firebaseapp.com",
+      projectId: "study-document-cloud",
+      storageBucket: "study-document-cloud.appspot.com",
+    };
+    if (typeof firebase !== 'undefined') {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+      } catch (e) {
+        console.warn("Firebase init:", e);
+      }
+    }
+
+    const GOOGLE_CLIENT_ID = "315499644525-9fqeclplnv2eqr9hcgp4pol58fgifahr.apps.googleusercontent.com";
+
+    // Ham goi Google OAuth 2.0 chinh thuc qua GIS (khong bi loi missing initial state)
+    window.triggerGoogleSignIn = function() {
+      return new Promise((resolve) => {
+        // Cach 1: Google Identity Services Token Client
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+          try {
+            const tokenClient = google.accounts.oauth2.initTokenClient({
+              client_id: GOOGLE_CLIENT_ID,
+              scope: 'openid email profile',
+              prompt: 'select_account',
+              callback: async (tokenResponse) => {
+                if (tokenResponse.error) {
+                  console.warn("Google OAuth error:", tokenResponse.error);
+                  resolve(JSON.stringify({ success: false, error: tokenResponse.error }));
+                  return;
+                }
+                try {
+                  // 1. Bat buoc xac thuc Firebase Cloud de Firebase kiem soat quyen dang nhap
+                  if (typeof firebase !== 'undefined' && firebase.auth) {
+                    try {
+                      const credential = firebase.auth.GoogleAuthProvider.credential(null, tokenResponse.access_token);
+                      const fbResult = await firebase.auth().signInWithCredential(credential);
+                      const fbUser = fbResult.user;
+                      resolve(JSON.stringify({
+                        success: true,
+                        uid: fbUser.uid,
+                        email: fbUser.email,
+                        displayName: fbUser.displayName || fbUser.email.split('@')[0],
+                        photoURL: fbUser.photoURL || ''
+                      }));
+                      return;
+                    } catch (fbCredErr) {
+                      console.warn("Firebase credential sign-in error:", fbCredErr);
+                      if (fbCredErr && (fbCredErr.code === 'auth/operation-not-allowed' || String(fbCredErr).includes('operation-not-allowed'))) {
+                        resolve(JSON.stringify({
+                          success: false,
+                          error: 'LỖI FIREBASE CLOUD: Phương thức Google đang bị TẮT (Disabled) trên Firebase Console! Firebase Cloud đã từ chối và chặn đăng nhập.',
+                        }));
+                        return;
+                      }
+                    }
+                  }
+                  const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: "Bearer " + tokenResponse.access_token }
+                  });
+                  const profile = await resp.json();
+                  resolve(JSON.stringify({
+                    success: true,
+                    uid: profile.sub,
+                    email: profile.email,
+                    displayName: profile.name || profile.email.split('@')[0],
+                    photoURL: profile.picture || ''
+                  }));
+                } catch (fetchErr) {
+                  resolve(JSON.stringify({ success: false, error: String(fetchErr) }));
+                }
+              }
+            });
+            tokenClient.requestAccessToken();
+            return;
+          } catch (gisErr) {
+            console.warn("GIS error:", gisErr);
+          }
+        }
+
+        // Cach 2: Firebase Auth signInWithPopup
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: 'select_account' });
+          firebase.auth().signInWithPopup(provider)
+            .then((result) => {
+              const u = result.user;
+              resolve(JSON.stringify({
+                success: true,
+                uid: u.uid,
+                email: u.email,
+                displayName: u.displayName || u.email.split('@')[0],
+                photoURL: u.photoURL || '',
+              }));
+            })
+            .catch((popupErr) => {
+              console.warn("Firebase popup error:", popupErr);
+              resolve(JSON.stringify({ success: false, code: popupErr.code, message: popupErr.message }));
+            });
+        } catch (fbErr) {
+          resolve(JSON.stringify({ success: false, message: String(fbErr) }));
+        }
+      });
+    };
+
+    // Lang nghe su kien start_google_signin tu Flutter
+    window.addEventListener('start_google_signin', function() {
+      window.triggerGoogleSignIn().then(function(jsonStr) {
+        window.dispatchEvent(new CustomEvent('google_signin_completed', { detail: jsonStr }));
+      });
+    });
+  </script>
+  <meta name="google-signin-client_id" content="315499644525-9fqeclplnv2eqr9hcgp4pol58fgifahr.apps.googleusercontent.com">
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
