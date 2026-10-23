@@ -1,4 +1,4 @@
-import '../database/study_course_dao.dart';
+import '../database/database_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/document_permission.dart';
@@ -74,10 +74,7 @@ class StudyDocumentCard extends StatelessWidget {
         document.deadline!.isBefore(DateTime.now()) &&
         !isDone;
 
-    final courseDao = CourseDao();
-    final Course? resolvedCourse = course ?? (document.courseId.isNotEmpty
-        ? courseDao.getById(document.courseId)
-        : null);
+// Course resolving removed (SE301 hidden)
 
     return Container(
       decoration: BoxDecoration(
@@ -139,24 +136,7 @@ class StudyDocumentCard extends StatelessWidget {
 
                     const SizedBox(width: 8),
                     _buildPermissionBadge(),
-                    if (resolvedCourse != null) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Color(resolvedCourse.colorValue).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          resolvedCourse.code,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Color(resolvedCourse.colorValue),
-                          ),
-                        ),
-                      ),
-                    ],
+                    // SE301 Course code hidden as requested
 
                     const Spacer(),
 
@@ -420,6 +400,99 @@ class StudyDocumentCard extends StatelessWidget {
                     ),
                   ),
                 ],
+
+                // 1. Thẻ Tags (Hiển thị nổi bật trên thẻ tài liệu)
+                if (document.tags.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: document.tags.map((tag) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE3F2FD),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFF90CAF9), width: 0.8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.label_rounded, size: 12, color: Color(0xFF1976D2)),
+                            const SizedBox(width: 4),
+                            Text(
+                              tag,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1565C0),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+
+                // 2. Vị trí Kho & Nút Xem bản đồ Google Maps (Hiển thị nổi bật trên thẻ tài liệu)
+                if (document.physicalLocation.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0F2F1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF80CBC4), width: 0.8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on_rounded, size: 15, color: Color(0xFF00796B)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Kho: ${document.physicalLocation}${_formatShelf(document.shelfLocation)}',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF004D40),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        InkWell(
+                          onTap: () => _showLocationMapDialog(context),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00796B),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.map_rounded, size: 12, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Xem bản đồ',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 12),
 
                 // Footer: Deadline, Status, Toggle
@@ -588,12 +661,32 @@ class StudyDocumentCard extends StatelessWidget {
     );
   }
 
+  String _formatShelf(String shelf) {
+    final clean = shelf.replaceAll('-', '').replaceAll(',', '').trim();
+    if (clean.isEmpty) return '';
+    return ' ($shelf)';
+  }
+
   void _showLocationMapDialog(BuildContext context) {
+    double lat = document.latitude;
+    double lng = document.longitude;
+
+    if ((lat == 0.0 || lat == 10.8700) && document.physicalLocation.isNotEmpty) {
+      final locItem = AppDatabase()
+          .getAllStorageLocations()
+          .where((l) => l.name.toLowerCase().trim() == document.physicalLocation.toLowerCase().trim())
+          .firstOrNull;
+      if (locItem != null && locItem.latitude != 0.0) {
+        lat = locItem.latitude;
+        lng = locItem.longitude;
+      }
+    }
+
     final loc = PhysicalLocation(
       locationName: document.physicalLocation.isNotEmpty ? document.physicalLocation : 'Thư viện Trung tâm - Tòa H1',
       shelfNumber: document.shelfLocation.isNotEmpty ? document.shelfLocation : 'Kệ A3 - Ngăn 02',
-      latitude: document.latitude != 0.0 ? document.latitude : 10.8700,
-      longitude: document.longitude != 0.0 ? document.longitude : 106.8030,
+      latitude: lat != 0.0 ? lat : 21.00699,
+      longitude: lng != 0.0 ? lng : 105.8251,
     );
 
     InteractiveLocationMap.showModal(
@@ -756,8 +849,7 @@ class StudyDocumentCard extends StatelessWidget {
   }
 
   void _showViewOnlyDialog(BuildContext context) {
-    final courseDao = CourseDao();
-    final Course? resCourse = course ?? (document.courseId.isNotEmpty ? courseDao.getById(document.courseId) : null);
+// Course resolving removed in dialog
     final deadlineStr = document.deadline != null ? DateFormat('dd/MM/yyyy').format(document.deadline!) : 'Chưa đặt hạn nộp';
 
     showDialog(
@@ -818,16 +910,7 @@ class StudyDocumentCard extends StatelessWidget {
                 // 2. Môn học, Loại tài liệu & Trạng thái
                 Row(
                   children: [
-                    if (resCourse != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        margin: const EdgeInsets.only(right: 8),
-                        decoration: BoxDecoration(
-                          color: Color(resCourse.colorValue).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text('${resCourse.code} - ${resCourse.name}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(resCourse.colorValue))),
-                      ),
+                    // Course code hidden
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       margin: const EdgeInsets.only(right: 8),

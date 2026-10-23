@@ -224,10 +224,17 @@ class StudyDocument {
   }
 
   factory StudyDocument.fromMap(Map<String, dynamic> map) {
-    List<String> parsedTags = [];
+        List<String> parsedTags = [];
     if (map['tags'] != null) {
       try {
-        parsedTags = List<String>.from(jsonDecode(map['tags']));
+        if (map['tags'] is List) {
+          parsedTags = (map['tags'] as List).map((e) => e.toString()).toList();
+        } else {
+          final dec = jsonDecode(map['tags']);
+          if (dec is List) {
+            parsedTags = dec.map((e) => e.toString()).toList();
+          }
+        }
       } catch (_) {
         parsedTags = [];
       }

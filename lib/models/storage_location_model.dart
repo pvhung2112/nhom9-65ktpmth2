@@ -25,8 +25,19 @@ class StorageLocationItem {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  String get fullAddress => '$building, $floor, $room ($cabinet - $shelf)';
-  String get shelfDetail => '$floor, $cabinet - $shelf';
+    String get fullAddress {
+    final list = [building, floor, room].where((s) => s.trim().isNotEmpty).toList();
+    final cs = [cabinet, shelf].where((s) => s.trim().isNotEmpty).join(' - ');
+    if (cs.isNotEmpty) list.add('($cs)');
+    return list.isNotEmpty ? list.join(', ') : name;
+  }
+
+  String get shelfDetail {
+    final list = [floor, room].where((s) => s.trim().isNotEmpty).toList();
+    final cs = [cabinet, shelf].where((s) => s.trim().isNotEmpty).join(' - ');
+    if (cs.isNotEmpty) list.add(cs);
+    return list.isNotEmpty ? list.join(', ') : '';
+  }
 
   Map<String, dynamic> toMap() => {
     'id': id,

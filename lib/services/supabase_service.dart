@@ -377,6 +377,9 @@ class SupabaseService {
           'description': enrichedDesc,
           'updated_at': DateTime.now().toIso8601String(),
         };
+        if (storageLocationId != null && storageLocationId.isNotEmpty) {
+          patchBody['storage_location_id'] = storageLocationId;
+        }
         if (newCourseCode != null && newCourseCode.isNotEmpty) {
           patchBody['course_code'] = newCourseCode;
         }
@@ -691,7 +694,7 @@ class SupabaseService {
             id: docId,
             title: map['title']?.toString() ?? 'Tài liệu không tên',
             description: cleanDesc,
-            courseId: (map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS402' ? 'c2' : ((map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS205' ? 'c3' : 'c1'),
+            courseId: '',
             type: DocumentType.lecture,
             fileUrl: map['file_url']?.toString() ?? '',
             tags: parsedTags,
@@ -739,7 +742,7 @@ class SupabaseService {
             id: docId,
             title: map['title']?.toString() ?? 'Tài liệu không tên',
             description: cleanDesc,
-            courseId: (map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS402' ? 'c2' : ((map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS205' ? 'c3' : 'c1'),
+            courseId: '',
             type: DocumentType.lecture,
             fileUrl: map['file_url']?.toString() ?? '',
             tags: parsedTags,
@@ -1022,6 +1025,9 @@ class SupabaseService {
   }
 
   // ================= QUẢN LÝ THẺ TAG TRÊN SUPABASE (TABLE: tags) =================
+  Future<List<DocumentTag>> fetchTags() => fetchTagsOnline();
+  Future<List<StorageLocationItem>> fetchStorageLocations() => fetchStorageLocationsOnline();
+
   Future<List<DocumentTag>> fetchTagsOnline() async {
     final List<DocumentTag> tags = [];
     if (!isOnlineMode) return tags;

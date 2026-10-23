@@ -95,6 +95,31 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     }
 
     _loadCourses();
+    _loadCloudTagsAndLocations();
+  }
+
+  Future<void> _loadCloudTagsAndLocations() async {
+    try {
+      final cloudTags = await _supabaseService.fetchTagsOnline();
+      final cloudLocs = await _supabaseService.fetchStorageLocationsOnline();
+      final db = AppDatabase();
+      if (cloudTags.isNotEmpty) {
+        for (var t in cloudTags) {
+          db.insertTag(t);
+        }
+        _availableTags = db.getAllTags();
+      }
+      if (cloudLocs.isNotEmpty) {
+        for (var l in cloudLocs) {
+          db.insertStorageLocation(l);
+        }
+        _availableLocations = db.getAllStorageLocations();
+        if (_selectedLocationId == null && _availableLocations.isNotEmpty) {
+          _selectedLocationId = _availableLocations.first.id;
+        }
+      }
+      if (mounted) setState(() {});
+    } catch (_) {}
   }
 
   void _loadCourses() {
@@ -448,8 +473,10 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         .map((t) => t.id)
         .toList();
     final selectedLoc = _availableLocations.where((l) => l.id == _selectedLocationId).firstOrNull;
-    final physLoc = selectedLoc?.name ?? (_physicalLocationController.text.trim().isNotEmpty ? _physicalLocationController.text.trim() : 'Tòa A - Phòng A305');
-    final shelfLoc = selectedLoc?.shelfDetail ?? (_shelfLocationController.text.trim().isNotEmpty ? _shelfLocationController.text.trim() : 'Tầng 3, Tủ số 2 - Ngăn số 3');
+    final physLoc = selectedLoc?.name ?? (_physicalLocationController.text.trim().isNotEmpty ? _physicalLocationController.text.trim() : 'Thư viện Trung tâm - Tòa H1');
+    final shelfLoc = selectedLoc?.shelfDetail ?? (_shelfLocationController.text.trim().isNotEmpty ? _shelfLocationController.text.trim() : 'Kệ A3 - Ngăn 02');
+    final double lat = selectedLoc?.latitude ?? 21.00699;
+    final double lng = selectedLoc?.longitude ?? 105.8251;
 
     // courseCode removed
 
@@ -473,6 +500,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
           tags: tags,
           physicalLocation: physLoc,
           shelfLocation: shelfLoc,
+          latitude: lat,
+          longitude: lng,
           isPinned: _isPinned,
         );
         debugPrint('Kết quả cập nhật Supabase Cloud: $ok');
@@ -484,7 +513,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
         fileUrl: fileUrl,
-        courseId: _selectedCourseId ?? '',
+        courseId: '',
         type: _selectedType,
         status: _selectedStatus,
         tags: tags,
@@ -492,6 +521,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         isPinned: _isPinned,
         physicalLocation: physLoc,
         shelfLocation: shelfLoc,
+        latitude: lat,
+        longitude: lng,
       );
       await _documentDao.update(updated);
       unawaited(StudySyncClient().saveToCloud(updated));
@@ -509,6 +540,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         tagIds: tagIds,
         physicalLocation: physLoc,
         shelfLocation: shelfLoc,
+        latitude: lat,
+        longitude: lng,
         isPinned: _isPinned,
       );
       final docId = savedSupabaseDoc.id;
@@ -518,7 +551,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
         fileUrl: fileUrl,
-        courseId: _selectedCourseId ?? '',
+        courseId: '',
         type: _selectedType,
         status: _selectedStatus,
         tags: tags,
@@ -530,6 +563,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         sharedPermission: 'owner',
         physicalLocation: physLoc,
         shelfLocation: shelfLoc,
+        latitude: lat,
+        longitude: lng,
       );
       await _documentDao.insert(newDoc);
       unawaited(StudySyncClient().saveToCloud(newDoc));
