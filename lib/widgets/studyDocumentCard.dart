@@ -1357,7 +1357,6 @@ class StudyDocumentCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       Material(
                         color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(color: Colors.grey.shade300),
