@@ -135,14 +135,14 @@ class StudyDocumentCard extends StatelessWidget {
                     ),
 
                     const SizedBox(width: 8),
-                    _buildPermissionBadge(),
-                    // SE301 Course code hidden as requested
-
-                    const Spacer(),
+                    Flexible(
+                      child: _buildPermissionBadge(),
+                    ),
+                    const SizedBox(width: 6),
 
                     if (document.isPinned) ...[
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF8E1),
                           borderRadius: BorderRadius.circular(12),
@@ -151,12 +151,12 @@ class StudyDocumentCard extends StatelessWidget {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.push_pin_rounded, size: 12, color: Color(0xFFE65100)),
-                            SizedBox(width: 4),
+                            Icon(Icons.push_pin_rounded, size: 11, color: Color(0xFFE65100)),
+                            SizedBox(width: 3),
                             Text(
-                              'ĐÃ GHIM LÊN ĐẦU',
+                              'ĐÃ GHIM',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9.5,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFFE65100),
                                 letterSpacing: 0.3,
@@ -652,9 +652,13 @@ class StudyDocumentCard extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: textColor),
           const SizedBox(width: 4),
-          Text(
-            'Được chia sẻ: $badgeText (từ $from)',
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+          Flexible(
+            child: Text(
+              'Được chia sẻ: $badgeText (từ $from)',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

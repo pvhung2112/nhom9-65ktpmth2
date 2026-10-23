@@ -553,176 +553,45 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
             ),
           ),
 
-          // Horizontal Warehouse Cards
+          // Warehouse Selector: Wrap co giãn tự động, không bị tràn cắt mép màn hình
           SliverToBoxAdapter(
-            child: SizedBox(
-              height: 105,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: _locations.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    final isAll = _selectedLocation == null;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12, bottom: 4),
-                      child: InkWell(
-                        onTap: () => setState(() => _selectedLocation = null),
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          width: 130,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isAll ? const Color(0xFFD81B60) : Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: isAll ? const Color(0xFFD81B60) : Colors.grey.shade200,
-                              width: 1.2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2)),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.all_inclusive_rounded, color: isAll ? Colors.white : Colors.grey.shade700, size: 22),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Tất cả các kho',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: isAll ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                              Text(
-                                '${_allDocs.length} tài liệu',
-                                style: TextStyle(fontSize: 11, color: isAll ? Colors.white70 : Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  final loc = _locations[index - 1];
-                  final isSelected = _selectedLocation == loc.name;
-                  final docCount = _allDocs.where((d) => d.physicalLocation == loc.name).length;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12, bottom: 4),
-                    child: InkWell(
-                      onTap: () => setState(() => _selectedLocation = isSelected ? null : loc.name),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        width: 190,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.teal.shade50 : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isSelected ? Colors.teal : Colors.grey.shade200,
-                            width: isSelected ? 1.8 : 1.0,
-                          ),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2)),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.location_city_rounded, color: isSelected ? Colors.teal.shade700 : const Color(0xFF00796B), size: 18),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    loc.name,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: isSelected ? Colors.teal.shade900 : Colors.black87,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              loc.shelfDetail.isNotEmpty ? loc.shelfDetail : loc.building,
-                              style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.teal.shade100.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '$docCount tài liệu',
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.teal.shade800),
-                                  ),
-                                ),
-                                InkWell(
-                                  onTap: () => _showLocationMap(loc),
-                                  child: const Row(
-                                    children: [
-                                      Icon(Icons.map_rounded, size: 12, color: Colors.teal),
-                                      SizedBox(width: 2),
-                                      Text('Bản đồ', style: TextStyle(fontSize: 10, color: Colors.teal, fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, 4, isMobile ? 16 : 24, 10),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildAllLocationsChip(isMobile),
+                  ..._locations.map((loc) => _buildLocationCard(loc, isMobile)),
+                ],
               ),
             ),
           ),
 
-          // 4. Section: Thẻ Tags
+          // 4. Section: Thẻ Tags (Wrap co giãn tự động xuống dòng)
           if (_tags.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 4),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.tag_rounded, size: 15, color: Colors.grey),
-                      const SizedBox(width: 6),
-                      ..._tags.map((t) {
-                        final isSel = _selectedTag == t.name;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: FilterChip(
-                            label: Text(t.name, style: TextStyle(fontSize: 11, color: isSel ? Colors.white : Colors.black87)),
-                            selected: isSel,
-                            selectedColor: const Color(0xFF1976D2),
-                            backgroundColor: Colors.white,
-                            side: BorderSide(color: isSel ? const Color(0xFF1976D2) : Colors.grey.shade300),
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            onSelected: (val) => setState(() => _selectedTag = val ? t.name : null),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
+                padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, 4, isMobile ? 16 : 24, 6),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Icon(Icons.tag_rounded, size: 15, color: Colors.grey),
+                    ..._tags.map((t) {
+                      final isSel = _selectedTag == t.name;
+                      return FilterChip(
+                        label: Text(t.name, style: TextStyle(fontSize: 11, color: isSel ? Colors.white : Colors.black87)),
+                        selected: isSel,
+                        selectedColor: const Color(0xFF1976D2),
+                        backgroundColor: Colors.white,
+                        side: BorderSide(color: isSel ? const Color(0xFF1976D2) : Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        onSelected: (val) => setState(() => _selectedTag = val ? t.name : null),
+                      );
+                    }),
+                  ],
                 ),
               ),
             ),
@@ -1035,5 +904,136 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
     ),
   ),
 );
+  }
+
+  Widget _buildAllLocationsChip(bool isMobile) {
+    final isAll = _selectedLocation == null;
+    return InkWell(
+      onTap: () => setState(() => _selectedLocation = null),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isAll ? const Color(0xFFD81B60) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isAll ? const Color(0xFFD81B60) : Colors.grey.shade300,
+            width: isAll ? 1.5 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 1)),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.all_inclusive_rounded, color: isAll ? Colors.white : const Color(0xFFD81B60), size: 16),
+            const SizedBox(width: 6),
+            Text(
+              'Tất cả các kho',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isAll ? FontWeight.bold : FontWeight.w600,
+                color: isAll ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: isAll ? Colors.white.withOpacity(0.25) : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${_allDocs.length}',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isAll ? Colors.white : Colors.grey.shade800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationCard(StorageLocationItem loc, bool isMobile) {
+    final isSelected = _selectedLocation == loc.name;
+    final docCount = _allDocs.where((d) => d.physicalLocation == loc.name).length;
+
+    return InkWell(
+      onTap: () => setState(() => _selectedLocation = isSelected ? null : loc.name),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.teal.shade50 : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.teal : Colors.grey.shade300,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 1)),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.location_city_rounded, color: isSelected ? Colors.teal.shade800 : const Color(0xFF00796B), size: 16),
+            const SizedBox(width: 5),
+            Text(
+              loc.name,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? Colors.teal.shade900 : Colors.black87,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.teal.shade100 : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$docCount TL',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.teal.shade900 : Colors.grey.shade700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 5),
+            InkWell(
+              onTap: () => _showLocationMap(loc),
+              borderRadius: BorderRadius.circular(5),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade100.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.map_rounded, size: 11, color: Color(0xFF004D40)),
+                    SizedBox(width: 2),
+                    Text(
+                      'Bản đồ',
+                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF004D40)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

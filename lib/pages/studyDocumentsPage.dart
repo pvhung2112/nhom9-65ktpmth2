@@ -322,65 +322,55 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Hàng 1: Lọc nhanh theo Thẻ Tag
+                      // Hàng 1: Lọc nhanh theo Thẻ Tag (Wrap tự động xuống dòng trên mobile)
                       if (allTags.isNotEmpty) ...[
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildTagFilterChip(
-                                label: 'Tất cả thẻ (${allDocs.length})',
-                                icon: Icons.tag_rounded,
-                                isSelected: _selectedTag == null,
-                                onTap: () => setState(() => _selectedTag = null),
-                              ),
-                              const SizedBox(width: 8),
-                              ...allTags.map((tag) {
-                                final isSel = _selectedTag == tag;
-                                final count = allDocs.where((d) => d.tags.contains(tag)).length;
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: _buildTagFilterChip(
-                                    label: '$tag ($count)',
-                                    isSelected: isSel,
-                                    onTap: () => setState(() => _selectedTag = isSel ? null : tag),
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            _buildTagFilterChip(
+                              label: 'Tất cả thẻ (${allDocs.length})',
+                              icon: Icons.tag_rounded,
+                              isSelected: _selectedTag == null,
+                              onTap: () => setState(() => _selectedTag = null),
+                            ),
+                            ...allTags.map((tag) {
+                              final isSel = _selectedTag == tag;
+                              final count = allDocs.where((d) => d.tags.contains(tag)).length;
+                              return _buildTagFilterChip(
+                                label: '$tag ($count)',
+                                isSelected: isSel,
+                                onTap: () => setState(() => _selectedTag = isSel ? null : tag),
+                              );
+                            }),
+                          ],
                         ),
                         const SizedBox(height: 8),
                       ],
 
-                      // Hàng 2: Lọc theo Kho / Tòa nhà lưu trữ bản cứng ngoài đời
+                      // Hàng 2: Lọc theo Kho lưu trữ (Wrap tự động xuống dòng trên mobile)
                       if (allLocations.isNotEmpty) ...[
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildLocationFilterChip(
-                                label: 'Tất cả vị trí kho (${allDocs.length})',
-                                icon: Icons.location_city_rounded,
-                                isSelected: _selectedLocation == null,
-                                onTap: () => setState(() => _selectedLocation = null),
-                              ),
-                              const SizedBox(width: 8),
-                              ...allLocations.map((loc) {
-                                final isSel = _selectedLocation == loc;
-                                final count = allDocs.where((d) => d.physicalLocation == loc).length;
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: _buildLocationFilterChip(
-                                    label: '$loc ($count)',
-                                    icon: Icons.place_rounded,
-                                    isSelected: isSel,
-                                    onTap: () => setState(() => _selectedLocation = isSel ? null : loc),
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            _buildLocationFilterChip(
+                              label: 'Tất cả vị trí kho (${allDocs.length})',
+                              icon: Icons.location_city_rounded,
+                              isSelected: _selectedLocation == null,
+                              onTap: () => setState(() => _selectedLocation = null),
+                            ),
+                            ...allLocations.map((loc) {
+                              final isSel = _selectedLocation == loc;
+                              final count = allDocs.where((d) => d.physicalLocation == loc).length;
+                              return _buildLocationFilterChip(
+                                label: '$loc ($count)',
+                                icon: Icons.place_rounded,
+                                isSelected: isSel,
+                                onTap: () => setState(() => _selectedLocation = isSel ? null : loc),
+                              );
+                            }),
+                          ],
                         ),
                       ],
                     ],
