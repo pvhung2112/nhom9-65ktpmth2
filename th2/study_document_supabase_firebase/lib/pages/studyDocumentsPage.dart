@@ -512,9 +512,12 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
 
 
+              final screenWidth = MediaQuery.sizeOf(context).width;
+              final double hPadding = screenWidth > 1200 ? ((screenWidth - 950) / 2).clamp(24.0, 400.0) : 24.0;
+
               return SliverPadding(
 
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: hPadding),
 
                 sliver: SliverList(
 

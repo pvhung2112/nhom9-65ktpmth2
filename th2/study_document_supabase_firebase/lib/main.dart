@@ -9,6 +9,7 @@ import 'pages/studyCoursesPage.dart';
 import 'pages/studyGoalsPage.dart';
 import 'pages/studyDocumentSearchPage.dart';
 import 'pages/borrowManagementPage.dart';
+import 'widgets/responsive_layout.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,7 +79,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 700;
+    final isDesktop = context.isWebOrDesktop;
 
     final pages = [
       HomePage(onNavigate: _onNavigate),

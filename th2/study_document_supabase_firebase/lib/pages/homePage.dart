@@ -87,109 +87,211 @@ class HomePage extends StatelessWidget {
               ),
 
               // Cashew Summary Stats Cards (Bank / Upcoming / Overdue equivalent)
+              // Cashew Summary Stats Cards (Thích ứng Responsive Mobile / Web)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatBox(
-                          context,
-                          title: 'TỔNG TÀI LIỆU',
-                          value: totalCount.toString(),
-                          subtitle: 'trong kho lưu trữ',
-                          icon: Icons.menu_book_rounded,
-                          color: const Color(0xFFD81B60),
-                          onTap: () => onNavigate(1),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _buildStatBox(
-                          context,
-                          title: 'ĐANG HỌC',
-                          value: inProgressCount.toString(),
-                          subtitle: 'cần hoàn thành',
-                          icon: Icons.timelapse_rounded,
-                          color: Colors.orange.shade700,
-                          onTap: () => onNavigate(1),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _buildStatBox(
-                          context,
-                          title: 'HOÀN THÀNH',
-                          value: completedCount.toString(),
-                          subtitle: 'đã học xong',
-                          icon: Icons.check_circle_rounded,
-                          color: Colors.green.shade600,
-                          onTap: () => onNavigate(1),
-                        ),
-                      ),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 520;
+                      if (isNarrow) {
+                        return Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildStatBox(
+                                    context,
+                                    title: 'TỔNG TÀI LIỆU',
+                                    value: totalCount.toString(),
+                                    subtitle: 'trong kho lưu trữ',
+                                    icon: Icons.menu_book_rounded,
+                                    color: const Color(0xFFD81B60),
+                                    onTap: () => onNavigate(1),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildStatBox(
+                                    context,
+                                    title: 'ĐANG HỌC',
+                                    value: inProgressCount.toString(),
+                                    subtitle: 'cần hoàn thành',
+                                    icon: Icons.timelapse_rounded,
+                                    color: Colors.orange.shade700,
+                                    onTap: () => onNavigate(1),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            _buildStatBox(
+                              context,
+                              title: 'HOÀN THÀNH',
+                              value: completedCount.toString(),
+                              subtitle: 'đã học xong',
+                              icon: Icons.check_circle_rounded,
+                              color: Colors.green.shade600,
+                              onTap: () => onNavigate(1),
+                            ),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatBox(
+                              context,
+                              title: 'TỔNG TÀI LIỆU',
+                              value: totalCount.toString(),
+                              subtitle: 'trong kho lưu trữ',
+                              icon: Icons.menu_book_rounded,
+                              color: const Color(0xFFD81B60),
+                              onTap: () => onNavigate(1),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: _buildStatBox(
+                              context,
+                              title: 'ĐANG HỌC',
+                              value: inProgressCount.toString(),
+                              subtitle: 'cần hoàn thành',
+                              icon: Icons.timelapse_rounded,
+                              color: Colors.orange.shade700,
+                              onTap: () => onNavigate(1),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: _buildStatBox(
+                              context,
+                              title: 'HOÀN THÀNH',
+                              value: completedCount.toString(),
+                              subtitle: 'đã học xong',
+                              icon: Icons.check_circle_rounded,
+                              color: Colors.green.shade600,
+                              onTap: () => onNavigate(1),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
 
-              // Quick Access Banner
+              // Quick Access Banner (Đáp ứng co giãn linh hoạt theo chiều rộng)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFF7D8DF),
-                          const Color(0xFFE8DEF8),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(Icons.bookmark_add_rounded, color: Color(0xFFD81B60), size: 26),
-                        ),
-                        const SizedBox(width: 16),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Thêm tài liệu hoặc bài tập mới',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Lưu trữ bài giảng, bài tập, link tài liệu và thiết lập hạn nộp',
-                                style: TextStyle(fontSize: 12, color: Colors.black54),
-                              ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isCompact = constraints.maxWidth < 560;
+                      return Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFF7D8DF),
+                              Color(0xFFE8DEF8),
                             ],
                           ),
+                          borderRadius: BorderRadius.circular(18),
                         ),
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFD81B60),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Thêm mới'),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const AddEditDocumentPage()),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                        child: isCompact
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(Icons.bookmark_add_rounded, color: Color(0xFFD81B60), size: 22),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Expanded(
+                                        child: Text(
+                                          'Thêm tài liệu hoặc bài tập mới',
+                                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'Lưu trữ bài giảng, bài tập, link tài liệu và thiết lập hạn nộp',
+                                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: FilledButton.icon(
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: const Color(0xFFD81B60),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                      icon: const Icon(Icons.add, size: 18),
+                                      label: const Text('Thêm mới tài liệu'),
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => const AddEditDocumentPage()),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: const Icon(Icons.bookmark_add_rounded, color: Color(0xFFD81B60), size: 26),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Thêm tài liệu hoặc bài tập mới',
+                                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Lưu trữ bài giảng, bài tập, link tài liệu và thiết lập hạn nộp',
+                                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  FilledButton.icon(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFFD81B60),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const Text('Thêm mới'),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const AddEditDocumentPage()),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                      );
+                    },
                   ),
                 ),
               ),
