@@ -44,36 +44,36 @@ class PhysicalLocation {
 
   static const List<PhysicalLocation> presetLocations = [
     PhysicalLocation(
+      locationName: 'Tòa A - Phòng A305',
+      campusName: 'Khuôn viên Giảng đường A',
+      shelfNumber: 'Tủ số 2 - Ngăn số 3',
+      latitude: 10.8708,
+      longitude: 106.8025,
+      floor: 'Tầng 3',
+    ),
+    PhysicalLocation(
       locationName: 'Thư viện Trung tâm - Tòa H1',
-      campusName: 'Khuôn viên Chính',
-      shelfNumber: 'Kệ A3 - Ngăn 02 (Sách CNTT & Phần mềm)',
+      campusName: 'Khu Thư viện & Học liệu',
+      shelfNumber: 'Kệ A3 - Ngăn số 2',
       latitude: 10.8700,
       longitude: 106.8030,
       floor: 'Tầng 2',
     ),
     PhysicalLocation(
-      locationName: 'Phòng Thí nghiệm Phần mềm Lab 302',
-      campusName: 'Tòa Nhà Công Nghệ C',
-      shelfNumber: 'Tủ Tài liệu Đồ án 01',
+      locationName: 'Tòa B - Phòng Lab 302',
+      campusName: 'Khu Công nghệ Thực hành',
+      shelfNumber: 'Tủ số 1 - Ngăn số 2',
       latitude: 10.8712,
       longitude: 106.8045,
       floor: 'Tầng 3',
     ),
     PhysicalLocation(
-      locationName: 'Tủ sách Nghiên cứu Khoa học',
-      campusName: 'Tòa Nhà B1',
-      shelfNumber: 'Kệ 08 - Chuyên đề Hệ thống Phân tán',
+      locationName: 'Tòa C - Kho Lưu trữ',
+      campusName: 'Tòa Nhà Hành chính C',
+      shelfNumber: 'Tủ hồ sơ 04 - Ngăn số 1',
       latitude: 10.8695,
       longitude: 106.8018,
       floor: 'Tầng 1',
-    ),
-    PhysicalLocation(
-      locationName: 'Phòng Tự học Sinh viên Co-working',
-      campusName: 'Nhà Văn Hóa Sinh Viên',
-      shelfNumber: 'Kệ Tra cứu Nhanh F2',
-      latitude: 10.8725,
-      longitude: 106.8050,
-      floor: 'Tầng Trệt',
     ),
   ];
 }

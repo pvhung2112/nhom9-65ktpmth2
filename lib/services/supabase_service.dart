@@ -1,3 +1,5 @@
+import '../models/tag_model.dart';
+import '../models/storage_location_model.dart';
 import '../struct/studyDocument.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -119,6 +121,7 @@ class SupabaseService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final List<dynamic> list = jsonDecode(response.body);
+        _documentsTable.clear();
         for (var item in list) {
           final doc = SupabaseDocument.fromMap(Map<String, dynamic>.from(item));
           _documentsTable[doc.id] = doc;
@@ -197,11 +200,19 @@ class SupabaseService {
   Future<SupabaseDocument> insertDocument({
     required String title,
     required String description,
-    required String courseCode,
+    String? courseCode,
+    String? storageLocationId,
     required String fileUrl,
     required String fileName,
     required int fileSize,
     required SupabaseUser currentUser,
+    List<String> tags = const [],
+    List<String> tagIds = const [],
+    String physicalLocation = 'Thư viện Trung tâm - Tòa H1',
+    String shelfLocation = 'Kệ A3 - Ngăn 02',
+    double latitude = 10.8700,
+    double longitude = 106.8030,
+    bool isPinned = false,
   }) async {
     // Đảm bảo user đã được lưu vào bảng users trước để thỏa mãn Foreign Key
     await upsertUser(currentUser);
@@ -227,13 +238,23 @@ class SupabaseService {
       } catch (_) {}
     }
 
-    // Dùng UUID chuẩn để khớp với kiểu dữ liệu UUID của PostgreSQL trên Supabase
+    // Đóng gói metadata để lưu an toàn vào DB ngay cả khi schema chưa cập nhật cột mới
+    final metaJson = jsonEncode({
+      'tags': tags,
+      'loc': physicalLocation,
+      'shelf': shelfLocation,
+      'lat': latitude,
+      'lng': longitude,
+      'pinned': isPinned,
+    });
+    final enrichedDesc = description.isNotEmpty ? '$description\n<!--META:$metaJson-->' : '<!--META:$metaJson-->';
+
     final docId = const Uuid().v4();
     final newDoc = SupabaseDocument(
       id: docId,
       title: title,
-      description: description,
-      courseCode: courseCode,
+      description: enrichedDesc,
+      storageLocationId: storageLocationId,
       fileUrl: fileUrl,
       fileName: fileName,
       fileSize: fileSize,
@@ -245,11 +266,17 @@ class SupabaseService {
     _documentsTable[newDoc.id] = newDoc;
     _notify();
 
-    // Đồng bộ trực tiếp lên Supabase Cloud
+    // Đồng bộ trực tiếp lên Supabase Cloud (Không gửi course_code vì đã bỏ cột này)
     if (isOnlineMode) {
       try {
         final uri = Uri.parse('$_supabaseUrl/rest/v1/documents');
-        final payload = newDoc.toMap()..['owner_id'] = effectiveOwnerId;
+        final payload = newDoc.toMap()
+          ..['owner_id'] = effectiveOwnerId
+          ..remove('course_code');
+        if (storageLocationId != null && storageLocationId.isNotEmpty) {
+          payload['storage_location_id'] = storageLocationId;
+        }
+
         final res = await http.post(
           uri,
           headers: {
@@ -262,6 +289,27 @@ class SupabaseService {
         ).timeout(const Duration(seconds: 6));
         if (res.statusCode >= 200 && res.statusCode < 300) {
           debugPrint('✅ Supabase Cloud: Đã thêm tài liệu thành công: ${newDoc.title}');
+
+          // Đồng bộ các tag vào bảng trung gian document_tags
+          final listToSync = tagIds.isNotEmpty ? tagIds : tags;
+          for (final tid in listToSync) {
+            try {
+              final tagUri = Uri.parse('$_supabaseUrl/rest/v1/document_tags');
+              await http.post(
+                tagUri,
+                headers: {
+                  'apikey': _supabaseAnonKey!,
+                  'Authorization': 'Bearer $_supabaseAnonKey',
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=minimal',
+                },
+                body: jsonEncode({
+                  'document_id': docId,
+                  'tag_id': tid,
+                }),
+              ).timeout(const Duration(seconds: 3));
+            } catch (_) {}
+          }
         } else {
           debugPrint('❌ Supabase Cloud lỗi thêm tài liệu: ${res.statusCode} ${res.body}');
         }
@@ -279,8 +327,15 @@ class SupabaseService {
     required String newTitle,
     required String newDescription,
     String? newCourseCode,
+    String? storageLocationId,
     String? newFileUrl,
     required String currentUserId,
+    List<String>? tags,
+    String? physicalLocation,
+    String? shelfLocation,
+    double? latitude,
+    double? longitude,
+    bool? isPinned,
   }) async {
     final doc = _documentsTable[documentId];
     if (doc != null) {
@@ -304,12 +359,22 @@ class SupabaseService {
 
     // LUÔN LUÔN gửi HTTP PATCH lên Supabase Cloud REST API để cập nhật cơ sở dữ liệu thật!
     bool cloudSuccess = false;
+    final Map<String, dynamic> metaMap = {};
+    if (tags != null) metaMap['tags'] = tags;
+    if (physicalLocation != null) metaMap['loc'] = physicalLocation;
+    if (shelfLocation != null) metaMap['shelf'] = shelfLocation;
+    if (latitude != null) metaMap['lat'] = latitude;
+    if (longitude != null) metaMap['lng'] = longitude;
+    if (isPinned != null) metaMap['pinned'] = isPinned;
+    final metaJson = jsonEncode(metaMap);
+    final enrichedDesc = newDescription.isNotEmpty ? '$newDescription\n<!--META:$metaJson-->' : '<!--META:$metaJson-->';
+
     if (isOnlineMode) {
       try {
         final uri = Uri.parse('$_supabaseUrl/rest/v1/documents?id=eq.$documentId');
         final Map<String, dynamic> patchBody = {
           'title': newTitle,
-          'description': newDescription,
+          'description': enrichedDesc,
           'updated_at': DateTime.now().toIso8601String(),
         };
         if (newCourseCode != null && newCourseCode.isNotEmpty) {
@@ -521,6 +586,8 @@ class SupabaseService {
       }
 
       final List<dynamic> rawDocs = jsonDecode(docRes.body);
+      _documentsTable.clear();
+      _permissionsTable.clear();
 
       // 2. Kéo toàn bộ quyền chia sẻ từ bảng document_permissions
       final permUri = Uri.parse('$_supabaseUrl/rest/v1/document_permissions?select=*');
@@ -584,6 +651,38 @@ class SupabaseService {
         final ownerName = map['owner_name']?.toString() ?? ownerEmail;
         final currentEmail = currentUser.email.toLowerCase().trim();
 
+        // Giải mã metadata (Tags, Vị trí vật lý, GPS, Đã ghim) từ Description hoặc Cột
+        final rawDesc = map['description']?.toString() ?? '';
+        String cleanDesc = rawDesc;
+        List<String> parsedTags = [];
+        String physicalLoc = map['physical_location']?.toString() ?? 'Thư viện Trung tâm - Tòa H1';
+        String shelfLoc = map['shelf_location']?.toString() ?? 'Kệ A3 - Ngăn 02';
+        double lat = (map['latitude'] as num?)?.toDouble() ?? 10.8700;
+        double lon = (map['longitude'] as num?)?.toDouble() ?? 106.8030;
+        bool pinned = map['is_pinned'] == true || map['is_pinned']?.toString() == 'true';
+        String borrowStat = map['borrow_status']?.toString() ?? 'available';
+
+        if (rawDesc.contains('<!--META:') && rawDesc.contains('-->')) {
+          final start = rawDesc.indexOf('<!--META:') + 9;
+          final end = rawDesc.indexOf('-->', start);
+          if (end > start) {
+            final metaStr = rawDesc.substring(start, end);
+            cleanDesc = rawDesc.substring(0, rawDesc.indexOf('<!--META:')).trim();
+            try {
+              final metaMap = jsonDecode(metaStr) as Map<String, dynamic>;
+              if (metaMap['tags'] is List) {
+                parsedTags = (metaMap['tags'] as List).map((e) => e.toString()).toList();
+              }
+              if (metaMap['loc'] != null) physicalLoc = metaMap['loc'].toString();
+              if (metaMap['shelf'] != null) shelfLoc = metaMap['shelf'].toString();
+              if (metaMap['lat'] != null) lat = (metaMap['lat'] as num).toDouble();
+              if (metaMap['lng'] != null) lon = (metaMap['lng'] as num).toDouble();
+              if (metaMap['pinned'] != null) pinned = metaMap['pinned'] == true;
+              if (metaMap['borrow'] != null) borrowStat = metaMap['borrow'].toString();
+            } catch (_) {}
+          }
+        }
+
         // Kiểm tra xem có phải chủ sở hữu tài liệu không
         final isOwner = (ownerEmail == currentEmail) || (ownerId == currentUser.id);
 
@@ -591,10 +690,17 @@ class SupabaseService {
           accessibleDocs.add(StudyDocument(
             id: docId,
             title: map['title']?.toString() ?? 'Tài liệu không tên',
-            description: map['description']?.toString() ?? '',
+            description: cleanDesc,
             courseId: (map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS402' ? 'c2' : ((map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS205' ? 'c3' : 'c1'),
             type: DocumentType.lecture,
             fileUrl: map['file_url']?.toString() ?? '',
+            tags: parsedTags,
+            physicalLocation: physicalLoc,
+            shelfLocation: shelfLoc,
+            latitude: lat,
+            longitude: lon,
+            isPinned: pinned,
+            borrowStatus: borrowStat,
             ownerId: ownerId,
             ownerEmail: ownerEmail,
             ownerName: ownerName,
@@ -632,10 +738,17 @@ class SupabaseService {
           accessibleDocs.add(StudyDocument(
             id: docId,
             title: map['title']?.toString() ?? 'Tài liệu không tên',
-            description: map['description']?.toString() ?? '',
+            description: cleanDesc,
             courseId: (map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS402' ? 'c2' : ((map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS205' ? 'c3' : 'c1'),
             type: DocumentType.lecture,
             fileUrl: map['file_url']?.toString() ?? '',
+            tags: parsedTags,
+            physicalLocation: physicalLoc,
+            shelfLocation: shelfLoc,
+            latitude: lat,
+            longitude: lon,
+            isPinned: pinned,
+            borrowStatus: borrowStat,
             ownerId: ownerId,
             ownerEmail: ownerEmail,
             ownerName: ownerName,
@@ -907,4 +1020,127 @@ class SupabaseService {
     }
     return true;
   }
+
+  // ================= QUẢN LÝ THẺ TAG TRÊN SUPABASE (TABLE: tags) =================
+  Future<List<DocumentTag>> fetchTagsOnline() async {
+    final List<DocumentTag> tags = [];
+    if (!isOnlineMode) return tags;
+    try {
+      final uri = Uri.parse('$_supabaseUrl/rest/v1/tags?select=*&order=created_at.desc');
+      final res = await http.get(
+        uri,
+        headers: {
+          'apikey': _supabaseAnonKey!,
+          'Authorization': 'Bearer $_supabaseAnonKey',
+        },
+      ).timeout(const Duration(seconds: 4));
+
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final List<dynamic> list = jsonDecode(res.body);
+        for (var item in list) {
+          tags.add(DocumentTag.fromMap(Map<String, dynamic>.from(item)));
+        }
+      }
+    } catch (_) {}
+    return tags;
+  }
+
+  Future<bool> insertTagOnline(DocumentTag tag) async {
+    if (!isOnlineMode) return false;
+    try {
+      final uri = Uri.parse('$_supabaseUrl/rest/v1/tags');
+      final res = await http.post(
+        uri,
+        headers: {
+          'apikey': _supabaseAnonKey!,
+          'Authorization': 'Bearer $_supabaseAnonKey',
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: jsonEncode(tag.toMap()),
+      ).timeout(const Duration(seconds: 4));
+      return res.statusCode >= 200 && res.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteTagOnline(String id) async {
+    if (!isOnlineMode) return false;
+    try {
+      final uri = Uri.parse('$_supabaseUrl/rest/v1/tags?id=eq.$id');
+      final res = await http.delete(
+        uri,
+        headers: {
+          'apikey': _supabaseAnonKey!,
+          'Authorization': 'Bearer $_supabaseAnonKey',
+        },
+      ).timeout(const Duration(seconds: 4));
+      return res.statusCode >= 200 && res.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ================= QUẢN LÝ KHO LƯU TRỮ TRÊN SUPABASE (TABLE: storage_locations) =================
+  Future<List<StorageLocationItem>> fetchStorageLocationsOnline() async {
+    final List<StorageLocationItem> locations = [];
+    if (!isOnlineMode) return locations;
+    try {
+      final uri = Uri.parse('$_supabaseUrl/rest/v1/storage_locations?select=*&order=created_at.desc');
+      final res = await http.get(
+        uri,
+        headers: {
+          'apikey': _supabaseAnonKey!,
+          'Authorization': 'Bearer $_supabaseAnonKey',
+        },
+      ).timeout(const Duration(seconds: 4));
+
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final List<dynamic> list = jsonDecode(res.body);
+        for (var item in list) {
+          locations.add(StorageLocationItem.fromMap(Map<String, dynamic>.from(item)));
+        }
+      }
+    } catch (_) {}
+    return locations;
+  }
+
+  Future<bool> insertStorageLocationOnline(StorageLocationItem loc) async {
+    if (!isOnlineMode) return false;
+    try {
+      final uri = Uri.parse('$_supabaseUrl/rest/v1/storage_locations');
+      final res = await http.post(
+        uri,
+        headers: {
+          'apikey': _supabaseAnonKey!,
+          'Authorization': 'Bearer $_supabaseAnonKey',
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: jsonEncode(loc.toMap()),
+      ).timeout(const Duration(seconds: 4));
+      return res.statusCode >= 200 && res.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteStorageLocationOnline(String id) async {
+    if (!isOnlineMode) return false;
+    try {
+      final uri = Uri.parse('$_supabaseUrl/rest/v1/storage_locations?id=eq.$id');
+      final res = await http.delete(
+        uri,
+        headers: {
+          'apikey': _supabaseAnonKey!,
+          'Authorization': 'Bearer $_supabaseAnonKey',
+        },
+      ).timeout(const Duration(seconds: 4));
+      return res.statusCode >= 200 && res.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
 }

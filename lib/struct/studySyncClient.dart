@@ -40,6 +40,12 @@ class StudySyncClient {
           'description': {'stringValue': doc.description},
           'fileUrl': {'stringValue': doc.fileUrl},
           'tags': {'stringValue': doc.tags.join(',')},
+          'physicalLocation': {'stringValue': doc.physicalLocation},
+          'shelfLocation': {'stringValue': doc.shelfLocation},
+          'latitude': {'doubleValue': doc.latitude},
+          'longitude': {'doubleValue': doc.longitude},
+          'isPinned': {'booleanValue': doc.isPinned},
+          'borrowStatus': {'stringValue': doc.borrowStatus},
           'uploadedBy': {'stringValue': userEmail},
           'syncedAt': {'stringValue': DateTime.now().toIso8601String()},
         }

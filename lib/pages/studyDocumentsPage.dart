@@ -1,3 +1,5 @@
+import '../models/physical_location.dart';
+import '../widgets/interactive_location_map.dart';
 import '../services/supabase_service.dart';
 import '../struct/firebaseAuthService.dart';
 import 'dart:async';
@@ -8,11 +10,11 @@ import 'package:flutter/material.dart';
 
 import '../struct/studyDocument.dart';
 
-import '../struct/studyCourse.dart';
+
 
 import '../database/study_document_dao.dart';
 
-import '../database/study_course_dao.dart';
+
 
 import '../widgets/studyDocumentCard.dart';
 
@@ -40,7 +42,7 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
   final DocumentDao _documentDao = DocumentDao();
 
-  final CourseDao _courseDao = CourseDao();
+  
 
   final StudySyncClient _syncClient = StudySyncClient();
 
@@ -48,7 +50,8 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
   int _selectedTabIndex = 0; // 0: Tất cả, 1: Bài giảng, 2: Bài tập, 3: Tham khảo
 
-  String? _selectedCourseId;
+  String? _selectedTag;
+  String? _selectedLocation;
 
   bool _isLoadingFromCloud = false;
 
@@ -78,15 +81,14 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
   Future<void> _loadFromCloud() async {
     setState(() => _isLoadingFromCloud = true);
     try {
-      // 1. Xóa toàn bộ dữ liệu tạm cục bộ cũ để đồng bộ chính xác với Supabase
-      await _documentDao.clearAll();
-
       final auth = FirebaseAuthService();
       final currentUser = auth.currentUser;
 
       if (currentUser != null) {
-        // 2. Kéo CHỈ các tài liệu mà currentUser có quyền truy cập (Chủ sở hữu hoặc Được chia sẻ)
+        // Kéo tài liệu từ Supabase Cloud
         final accessibleDocs = await SupabaseService().fetchAccessibleStudyDocuments(currentUser);
+        // Đồng bộ chính xác theo Supabase: Kể cả khi Supabase đã xóa hết (0 tài liệu), ta vẫn xóa sạch cache
+        await _documentDao.clearAll();
         for (var doc in accessibleDocs) {
           await _documentDao.insert(doc);
         }
@@ -252,6 +254,12 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
                   IconButton.filledTonal(
 
+                    icon: const Icon(Icons.location_city_rounded, color: Colors.teal),
+                    tooltip: 'Quản lý vị trí lưu trữ & Bản đồ',
+                    onPressed: () => _showLocationOverviewDialog(context),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
                     icon: const Icon(Icons.cloud_done_rounded, color: Color(0xFFD81B60)),
 
                     tooltip: 'Trạng thái Firebase Cloud',
@@ -316,83 +324,97 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
 
 
-          // Course Filter Chips
+          // Dynamic Tag & Location Filter Chips (Checklist 3)
+          StreamBuilder<List<StudyDocument>>(
+            stream: _documentDao.watchAll(),
+            initialData: _documentDao.getAll(),
+            builder: (context, snapshot) {
+              final allDocs = snapshot.data ?? _documentDao.getAll();
+              final allTags = <String>{};
+              final allLocations = <String>{};
+              for (final d in allDocs) {
+                for (final t in d.tags) {
+                  final trimmed = t.trim();
+                  if (trimmed.isNotEmpty) allTags.add(trimmed);
+                }
+                if (d.physicalLocation.trim().isNotEmpty) {
+                  allLocations.add(d.physicalLocation.trim());
+                }
+              }
 
-          SliverToBoxAdapter(
-
-            child: Padding(
-
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 14),
-
-              child: StreamBuilder<List<Course>>(
-
-                stream: _courseDao.watchAll(),
-
-                initialData: _courseDao.getAll(),
-
-                builder: (context, snapshot) {
-
-                  final courses = snapshot.data ?? [];
-
-                  return SingleChildScrollView(
-
-                    scrollDirection: Axis.horizontal,
-
-                    child: Row(
-
-                      children: [
-
-                        _buildCourseFilterChip(
-
-                          label: 'Tất cả môn',
-
-                          isSelected: _selectedCourseId == null,
-
-                          onTap: () => setState(() => _selectedCourseId = null),
-
+              return SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Hàng 1: Lọc nhanh theo Thẻ Tag
+                      if (allTags.isNotEmpty) ...[
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildTagFilterChip(
+                                label: 'Tất cả thẻ (${allDocs.length})',
+                                icon: Icons.tag_rounded,
+                                isSelected: _selectedTag == null,
+                                onTap: () => setState(() => _selectedTag = null),
+                              ),
+                              const SizedBox(width: 8),
+                              ...allTags.map((tag) {
+                                final isSel = _selectedTag == tag;
+                                final count = allDocs.where((d) => d.tags.contains(tag)).length;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: _buildTagFilterChip(
+                                    label: '$tag ($count)',
+                                    isSelected: isSel,
+                                    onTap: () => setState(() => _selectedTag = isSel ? null : tag),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
                         ),
-
-                        const SizedBox(width: 8),
-
-                        ...courses.map((c) {
-
-                          final isSel = _selectedCourseId == c.id;
-
-                          return Padding(
-
-                            padding: const EdgeInsets.only(right: 8),
-
-                            child: _buildCourseFilterChip(
-
-                              label: c.code,
-
-                              dotColor: Color(c.colorValue),
-
-                              isSelected: isSel,
-
-                              onTap: () => setState(() => _selectedCourseId = isSel ? null : c.id),
-
-                            ),
-
-                          );
-
-                        }),
-
+                        const SizedBox(height: 8),
                       ],
 
-                    ),
-
-                  );
-
-                },
-
-              ),
-
-            ),
-
+                      // Hàng 2: Lọc theo Kho / Tòa nhà lưu trữ bản cứng ngoài đời
+                      if (allLocations.isNotEmpty) ...[
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildLocationFilterChip(
+                                label: 'Tất cả vị trí kho (${allDocs.length})',
+                                icon: Icons.location_city_rounded,
+                                isSelected: _selectedLocation == null,
+                                onTap: () => setState(() => _selectedLocation = null),
+                              ),
+                              const SizedBox(width: 8),
+                              ...allLocations.map((loc) {
+                                final isSel = _selectedLocation == loc;
+                                final count = allDocs.where((d) => d.physicalLocation == loc).length;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: _buildLocationFilterChip(
+                                    label: '$loc ($count)',
+                                    icon: Icons.place_rounded,
+                                    isSelected: isSel,
+                                    onTap: () => setState(() => _selectedLocation = isSel ? null : loc),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-
-
 
           // Document List
 
@@ -420,13 +442,22 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
 
 
-              // Instant filter by Course
-
-              if (_selectedCourseId != null && _selectedCourseId!.isNotEmpty && _selectedCourseId != 'all') {
-
-                documents = documents.where((d) => d.courseId == _selectedCourseId).toList();
-
+              // Instant filter by Tag (Checklist 3)
+              if (_selectedTag != null && _selectedTag!.isNotEmpty) {
+                documents = documents.where((d) => d.tags.contains(_selectedTag)).toList();
               }
+
+              // Instant filter by Vị trí kho lưu trữ (Checklist 3)
+              if (_selectedLocation != null && _selectedLocation!.isNotEmpty) {
+                documents = documents.where((d) => d.physicalLocation == _selectedLocation).toList();
+              }
+
+              // ƯU TIÊN TÀI LIỆU ĐÃ GHIM LÊN ĐẦU DANH SÁCH (PINNED FIRST)
+              documents.sort((a, b) {
+                if (a.isPinned && !b.isPinned) return -1;
+                if (!a.isPinned && b.isPinned) return 1;
+                return b.updatedAt.compareTo(a.updatedAt);
+              });
 
 
 
@@ -603,82 +634,46 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
 
 
-  Widget _buildCourseFilterChip({
-
+  Widget _buildTagFilterChip({
     required String label,
-
-    Color? dotColor,
-
+    IconData? icon,
     required bool isSelected,
-
     required VoidCallback onTap,
-
   }) {
-
     return InkWell(
-
       borderRadius: BorderRadius.circular(20),
-
       onTap: onTap,
-
       child: Container(
-
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-
         decoration: BoxDecoration(
-
           color: isSelected ? const Color(0xFFF7D8DF) : Theme.of(context).colorScheme.surface,
-
           borderRadius: BorderRadius.circular(20),
-
           border: Border.all(
-
             color: isSelected ? const Color(0xFFD81B60) : Colors.grey.shade300,
-
             width: 1.2,
-
           ),
-
         ),
-
         child: Row(
-
           mainAxisSize: MainAxisSize.min,
-
           children: [
-
-            if (dotColor != null) ...[
-
-              CircleAvatar(backgroundColor: dotColor, radius: 5),
-
-              const SizedBox(width: 6),
-
-            ],
-
-            Text(
-
-              label,
-
-              style: TextStyle(
-
-                fontSize: 13,
-
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-
-                color: isSelected ? const Color(0xFFD81B60) : Theme.of(context).colorScheme.onSurface,
-
-              ),
-
+            Icon(
+              icon ?? Icons.label_outline_rounded,
+              size: 14,
+              color: isSelected ? const Color(0xFFD81B60) : Colors.grey.shade600,
             ),
-
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? const Color(0xFFD81B60) : Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
           ],
-
         ),
-
       ),
-
     );
-
   }
 
 
@@ -965,4 +960,220 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
       },
     );
   }
+
+  Widget _buildLocationFilterChip({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.teal.shade100 : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.teal.shade700 : Colors.teal.shade200,
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? Colors.teal.shade900 : Colors.teal.shade700,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.teal.shade900 : Colors.teal.shade800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLocationOverviewDialog(BuildContext context) {
+    final allDocs = _documentDao.getAll();
+    final Map<String, List<StudyDocument>> locationGroups = {};
+    for (final doc in allDocs) {
+      final loc = doc.physicalLocation.isNotEmpty ? doc.physicalLocation : 'Chưa phân bổ vị trí';
+      locationGroups.putIfAbsent(loc, () => []).add(doc);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.location_city_rounded, color: Colors.teal, size: 24),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'QUẢN LÝ VỊ TRÍ LƯU TRỮ VẬT LÝ',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(
+                        'Danh mục chi tiết tài liệu theo từng kho, tòa nhà & kệ sách',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: locationGroups.isEmpty
+                  ? const Center(child: Text('Chưa có dữ liệu vị trí tài liệu.'))
+                  : ListView(
+                      children: locationGroups.entries.map((entry) {
+                        final locName = entry.key;
+                        final docs = entry.value;
+                        final firstDoc = docs.first;
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.teal.shade200),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2)),
+                            ],
+                          ),
+                          child: Theme(
+                            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                            child: ExpansionTile(
+                              initiallyExpanded: true,
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.teal.shade50,
+                                child: const Icon(Icons.business_rounded, color: Colors.teal, size: 20),
+                              ),
+                              title: Text(
+                                locName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                '${docs.length} tài liệu bản cứng đang lưu trữ',
+                                style: TextStyle(fontSize: 12, color: Colors.teal.shade700),
+                              ),
+                              children: [
+                                const Divider(height: 1),
+                                ...docs.map((d) => ListTile(
+                                  dense: true,
+                                  leading: const Icon(Icons.menu_book_rounded, size: 18, color: Color(0xFFD81B60)),
+                                  title: Text(d.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  subtitle: Text('Vị trí: ${d.shelfLocation}', style: const TextStyle(fontSize: 11, color: Colors.brown)),
+                                  trailing: d.isPinned
+                                      ? const Icon(Icons.push_pin_rounded, size: 14, color: Colors.amber)
+                                      : null,
+                                )),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.teal,
+                                            side: const BorderSide(color: Colors.teal),
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                          ),
+                                          icon: const Icon(Icons.filter_list_rounded, size: 16),
+                                          label: const Text('Lọc tài liệu tại đây', style: TextStyle(fontSize: 12)),
+                                          onPressed: () {
+                                            setState(() => _selectedLocation = locName);
+                                            Navigator.pop(ctx);
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: FilledButton.tonalIcon(
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: Colors.teal.shade100,
+                                            foregroundColor: Colors.teal.shade900,
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                          ),
+                                          icon: const Icon(Icons.map_rounded, size: 16),
+                                          label: const Text('Xem bản đồ', style: TextStyle(fontSize: 12)),
+                                          onPressed: () {
+                                            Navigator.pop(ctx);
+                                            showDialog(
+                                              context: context,
+                                              builder: (_) => AlertDialog(
+                                                title: Text(locName),
+                                                content: InteractiveLocationMap(
+                                                  location: PhysicalLocation(
+                                                    locationName: locName,
+                                                    shelfNumber: firstDoc.shelfLocation,
+                                                    latitude: firstDoc.latitude != 0.0 ? firstDoc.latitude : 10.8700,
+                                                    longitude: firstDoc.longitude != 0.0 ? firstDoc.longitude : 106.8030,
+                                                  ),
+                                                  documentTitle: '${docs.length} tài liệu lưu tại $locName',
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 }

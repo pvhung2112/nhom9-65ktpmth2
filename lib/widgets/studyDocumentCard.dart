@@ -91,7 +91,10 @@ class StudyDocumentCard extends StatelessWidget {
           ),
         ],
         border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          color: document.isPinned
+              ? const Color(0xFFFFB300)
+              : theme.colorScheme.outlineVariant.withOpacity(0.3),
+          width: document.isPinned ? 1.6 : 1.0,
         ),
       ),
       child: Material(
@@ -157,11 +160,33 @@ class StudyDocumentCard extends StatelessWidget {
 
                     const Spacer(),
 
-                    if (document.isPinned)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 6),
-                        child: Icon(Icons.push_pin_rounded, size: 16, color: Colors.amber),
+                    if (document.isPinned) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF8E1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFFB300), width: 1.2),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.push_pin_rounded, size: 12, color: Color(0xFFE65100)),
+                            SizedBox(width: 4),
+                            Text(
+                              'ĐÃ GHIM LÊN ĐẦU',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFE65100),
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 6),
+                    ],
 
                     if (document.isSynced)
                       const Padding(

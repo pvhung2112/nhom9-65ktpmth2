@@ -1,3 +1,8 @@
+import 'package:uuid/uuid.dart';
+import '../database/database_helper.dart';
+import '../models/tag_model.dart';
+import '../models/storage_location_model.dart';
+import '../struct/studySyncClient.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -36,6 +41,11 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
   late TextEditingController _physicalLocationController;
   late TextEditingController _shelfLocationController;
 
+  List<String> _selectedTags = [];
+  String? _selectedLocationId;
+  List<DocumentTag> _availableTags = [];
+  List<StorageLocationItem> _availableLocations = [];
+
   String? _selectedCourseId;
   DocumentType _selectedType = DocumentType.lecture;
   DocumentStatus _selectedStatus = DocumentStatus.todo;
@@ -45,6 +55,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
 
   // Checklist 2 State: Firebase Storage Upload
   bool _isUploadingFile = false;
+  
   String? _uploadedStoragePath;
   String? _uploadedFileName;
   int _uploadedFileSize = 0;
@@ -67,6 +78,15 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     _selectedStatus = doc?.status ?? DocumentStatus.todo;
     _selectedDeadline = doc?.deadline;
     _isPinned = doc?.isPinned ?? false;
+
+    final db = AppDatabase();
+    _availableTags = db.getAllTags();
+    _availableLocations = db.getAllStorageLocations();
+    _selectedTags = List<String>.from(doc?.tags ?? []);
+    if (_availableLocations.isNotEmpty) {
+      final matched = _availableLocations.where((l) => l.name == doc?.physicalLocation).firstOrNull;
+      _selectedLocationId = matched?.id ?? _availableLocations.first.id;
+    }
 
     if (doc != null && doc.fileUrl.isNotEmpty) {
       _uploadedFileName = 'TaiLieu_${doc.title.replaceAll(' ', '_')}.pdf';
@@ -105,6 +125,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     _shelfLocationController.dispose();
     super.dispose();
   }
+
 
   Future<void> _pickDeadline() async {
     final now = DateTime.now();
@@ -420,15 +441,16 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     }
 
     final currentUser = authService.currentUser!;
-    final tags = _tagsController.text
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
+    final tags = _selectedTags;
+    final tagIds = _availableTags
+        .where((t) => _selectedTags.contains(t.name) || _selectedTags.contains(t.id))
+        .map((t) => t.id)
         .toList();
+    final selectedLoc = _availableLocations.where((l) => l.id == _selectedLocationId).firstOrNull;
+    final physLoc = selectedLoc?.name ?? (_physicalLocationController.text.trim().isNotEmpty ? _physicalLocationController.text.trim() : 'Tòa A - Phòng A305');
+    final shelfLoc = selectedLoc?.shelfDetail ?? (_shelfLocationController.text.trim().isNotEmpty ? _shelfLocationController.text.trim() : 'Tầng 3, Tủ số 2 - Ngăn số 3');
 
-    final courseCode = _courses
-        .firstWhere((c) => c.id == _selectedCourseId, orElse: () => Course(id: '', code: 'SE301', name: '', colorValue: 0))
-        .code;
+    // courseCode removed
 
     final fileUrl = _fileUrlController.text.trim();
     final fileName = _uploadedFileName ?? (fileUrl.isNotEmpty ? 'TaiLieu_${DateTime.now().millisecondsSinceEpoch}.pdf' : '');
@@ -444,9 +466,13 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
           documentId: docId,
           newTitle: _titleController.text.trim(),
           newDescription: _descController.text.trim(),
-          newCourseCode: courseCode,
+          storageLocationId: _selectedLocationId,
           newFileUrl: fileUrl,
           currentUserId: currentUser.id,
+          tags: tags,
+          physicalLocation: physLoc,
+          shelfLocation: shelfLoc,
+          isPinned: _isPinned,
         );
         debugPrint('Kết quả cập nhật Supabase Cloud: $ok');
       } catch (e) {
@@ -463,19 +489,26 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         tags: tags,
         deadline: _selectedDeadline,
         isPinned: _isPinned,
+        physicalLocation: physLoc,
+        shelfLocation: shelfLoc,
       );
       await _documentDao.update(updated);
-      // Đã lưu trực tiếp lên Supabase Cloud ở trên
+      unawaited(StudySyncClient().saveToCloud(updated));
     } else {
       // Checklist 2 & 3: Thêm mới tài liệu vào Supabase và liên kết Firebase Storage
       final savedSupabaseDoc = await _supabaseService.insertDocument(
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
-        courseCode: courseCode,
+        storageLocationId: _selectedLocationId,
         fileUrl: fileUrl,
         fileName: fileName,
         fileSize: fileSize,
         currentUser: currentUser,
+        tags: tags,
+        tagIds: tagIds,
+        physicalLocation: physLoc,
+        shelfLocation: shelfLoc,
+        isPinned: _isPinned,
       );
       final docId = savedSupabaseDoc.id;
 
@@ -494,9 +527,11 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         ownerEmail: savedSupabaseDoc.ownerEmail,
         ownerName: savedSupabaseDoc.ownerName,
         sharedPermission: 'owner',
+        physicalLocation: physLoc,
+        shelfLocation: shelfLoc,
       );
       await _documentDao.insert(newDoc);
-      // Đã lưu trực tiếp lên Supabase Cloud ở trên
+      unawaited(StudySyncClient().saveToCloud(newDoc));
     }
 
     if (mounted) {
@@ -646,30 +681,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
             ),
             const SizedBox(height: 16),
 
-            // Chon Mon hoc
-            DropdownButtonFormField<String>(
-              value: (_courses.any((c) => c.id == _selectedCourseId))
-                  ? _selectedCourseId
-                  : (_courses.isNotEmpty ? _courses.first.id : null),
-              decoration: const InputDecoration(
-                labelText: 'Môn học / Học phần *',
-                border: OutlineInputBorder(),
-              ),
-              items: _courses.map((c) {
-                return DropdownMenuItem(
-                  value: c.id,
-                  child: Row(
-                    children: [
-                      CircleAvatar(backgroundColor: Color(c.colorValue), radius: 6),
-                      const SizedBox(width: 8),
-                      Text('${c.code} - ${c.name}'),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: _isReadOnly ? null : (val) => setState(() => _selectedCourseId = val),
-            ),
-            const SizedBox(height: 16),
+
 
             // Phan loai & Trang thai
             Row(
@@ -877,15 +889,194 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
             ),
             const SizedBox(height: 16),
 
-            // Tags
-            TextFormField(
-              controller: _tagsController,
-              readOnly: _isReadOnly,
-              decoration: const InputDecoration(
-                labelText: 'Thẻ tag (ngăn cách bằng dấu phẩy)',
-                hintText: 'KTPM, Firebase, Supabase, RLS',
-                prefixIcon: Icon(Icons.tag_rounded),
-                border: OutlineInputBorder(),
+            // ================================================================
+            // 1. THẺ TAG PHÂN LOẠI (LỌC VÒNG FOR - CHỌN NHIỀU TAG)
+            // ================================================================
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDF7F9),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF3C4D4)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD81B60).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.label_rounded, color: Color(0xFFD81B60), size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Thẻ Tag phân loại (Chọn được nhiều tag)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFD81B60)),
+                            ),
+                            Text(
+                              'Nhấn vào các thẻ tag bên dưới để gán cho tài liệu này',
+                              style: TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.add, size: 14),
+                        label: const Text('Tạo Tag mới', style: TextStyle(fontSize: 12)),
+                        onPressed: _showQuickAddTagDialog,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_availableTags.isEmpty) ...[
+                    const Text('Chưa có thẻ tag nào trong danh mục. Bấm "Tạo Tag mới" để thêm.', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey)),
+                  ] else ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _availableTags.map((t) {
+                        final isSel = _selectedTags.contains(t.name);
+                        return FilterChip(
+                          avatar: CircleAvatar(
+                            backgroundColor: isSel ? const Color(0xFFD81B60) : Colors.grey.shade400,
+                            radius: 5,
+                          ),
+                          label: Text(t.name, style: TextStyle(fontSize: 12, fontWeight: isSel ? FontWeight.bold : FontWeight.normal)),
+                          selected: isSel,
+                          selectedColor: const Color(0xFFF7D8DF),
+                          checkmarkColor: const Color(0xFFD81B60),
+                          onSelected: _isReadOnly ? null : (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedTags.add(t.name);
+                              } else {
+                                _selectedTags.remove(t.name);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ================================================================
+            // 2. VỊ TRÍ KHO LƯU TRỮ (LỌC VÒNG FOR - CHỌN ĐÚNG 1 KHO)
+            // ================================================================
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.teal.shade50.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.teal.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.warehouse_rounded, color: Colors.teal, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Kho lưu trữ vật lý (Chỉ chọn 1 kho duy nhất)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.teal),
+                            ),
+                            Text(
+                              'Tài liệu bản cứng được cất tại Tòa nhà, Tầng, Phòng, Tủ, Ngăn',
+                              style: TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.add_location_alt_rounded, size: 14, color: Colors.teal),
+                        label: const Text('Tạo Kho mới', style: TextStyle(fontSize: 12, color: Colors.teal)),
+                        onPressed: _showQuickAddLocationDialog,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  DropdownButtonFormField<String>(
+                    value: (_availableLocations.any((l) => l.id == _selectedLocationId))
+                        ? _selectedLocationId
+                        : (_availableLocations.isNotEmpty ? _availableLocations.first.id : null),
+                    decoration: const InputDecoration(
+                      labelText: 'Chọn Kho cất giữ tài liệu *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.apartment_rounded, color: Colors.teal),
+                    ),
+                    items: _availableLocations.map((loc) {
+                      return DropdownMenuItem<String>(
+                        value: loc.id,
+                        child: Text(
+                          '${loc.name} (${loc.shelfDetail})',
+                          style: const TextStyle(fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: _isReadOnly ? null : (val) {
+                      setState(() {
+                        _selectedLocationId = val;
+                        final found = _availableLocations.firstWhere((l) => l.id == val);
+                        _physicalLocationController.text = found.name;
+                        _shelfLocationController.text = found.shelfDetail;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Hiển thị chi tiết địa chỉ kho đang chọn
+                  Builder(
+                    builder: (context) {
+                      final selectedLoc = _availableLocations.where((l) => l.id == _selectedLocationId).firstOrNull;
+                      if (selectedLoc == null) return const SizedBox.shrink();
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.teal.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline_rounded, size: 16, color: Colors.teal),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Chi tiết: ${selectedLoc.building} - ${selectedLoc.floor} - ${selectedLoc.room} | ${selectedLoc.cabinet} - ${selectedLoc.shelf}',
+                                style: TextStyle(fontSize: 11, color: Colors.teal.shade900, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -926,4 +1117,120 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
       ),
     );
   }
+
+  void _showQuickAddTagDialog() {
+    final tagCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Thêm Thẻ Tag Mới'),
+        content: TextField(
+          controller: tagCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Ví dụ: Cơ sở dữ liệu, Java, Đồ án...',
+            prefixIcon: Icon(Icons.tag_rounded),
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD81B60), foregroundColor: Colors.white),
+            onPressed: () async {
+              final name = tagCtrl.text.trim();
+              if (name.isEmpty) return;
+              final newTag = DocumentTag(id: const Uuid().v4(), name: name);
+              await AppDatabase().insertTag(newTag);
+              _supabaseService.insertTagOnline(newTag);
+              setState(() {
+                _availableTags = AppDatabase().getAllTags();
+                _selectedTags.add(name);
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Thêm Tag'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showQuickAddLocationDialog() {
+    final nameCtrl = TextEditingController();
+    final bldCtrl = TextEditingController(text: 'Tòa A');
+    final flCtrl = TextEditingController(text: 'Tầng 3');
+    final rmCtrl = TextEditingController(text: 'Phòng A305');
+    final cabCtrl = TextEditingController(text: 'Tủ số 2');
+    final shCtrl = TextEditingController(text: 'Ngăn số 3');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Thêm Kho / Vị Trí Cất Giữ'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Tên kho (e.g. Tòa A - Phòng A305)', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: bldCtrl,
+                decoration: const InputDecoration(labelText: 'Tòa nhà', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: TextField(controller: flCtrl, decoration: const InputDecoration(labelText: 'Tầng', border: OutlineInputBorder()))),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: rmCtrl, decoration: const InputDecoration(labelText: 'Phòng', border: OutlineInputBorder()))),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: TextField(controller: cabCtrl, decoration: const InputDecoration(labelText: 'Tủ', border: OutlineInputBorder()))),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: shCtrl, decoration: const InputDecoration(labelText: 'Ngăn', border: OutlineInputBorder()))),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+            onPressed: () async {
+              var name = nameCtrl.text.trim();
+              if (name.isEmpty) name = '${bldCtrl.text.trim()} - ${rmCtrl.text.trim()}';
+              final newLoc = StorageLocationItem(
+                id: const Uuid().v4(),
+                name: name,
+                building: bldCtrl.text.trim(),
+                floor: flCtrl.text.trim(),
+                room: rmCtrl.text.trim(),
+                cabinet: cabCtrl.text.trim(),
+                shelf: shCtrl.text.trim(),
+              );
+              await AppDatabase().insertStorageLocation(newLoc);
+              _supabaseService.insertStorageLocationOnline(newLoc);
+              setState(() {
+                _availableLocations = AppDatabase().getAllStorageLocations();
+                _selectedLocationId = newLoc.id;
+                _physicalLocationController.text = newLoc.name;
+                _shelfLocationController.text = newLoc.shelfDetail;
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Lưu Kho'),
+          ),
+        ],
+      ),
+    );
+  }
+
 }

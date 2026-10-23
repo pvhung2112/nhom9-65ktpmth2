@@ -1,3 +1,5 @@
+import 'pages/tagManagementPage.dart';
+import 'pages/storageLocationsPage.dart';
 import 'services/supabase_service.dart';
 import 'package:flutter/material.dart';
 import 'services/firebase_auth_service.dart';
@@ -81,6 +83,8 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
       HomePage(onNavigate: _onNavigate),
       const StudyDocumentsPage(),
       const BorrowManagementPage(),
+      const TagManagementPage(),
+      const StorageLocationsPage(),
     ];
 
     if (isDesktop) {

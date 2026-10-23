@@ -20,6 +20,8 @@ class NavigationSidebar extends StatelessWidget {
       {'icon': Icons.home_rounded, 'label': 'Trang chủ', 'index': 0},
       {'icon': Icons.menu_book_rounded, 'label': 'Tài liệu học tập', 'index': 1},
       {'icon': Icons.swap_horiz_rounded, 'label': 'Mượn / Trả (TH2)', 'index': 2},
+      {'icon': Icons.label_rounded, 'label': 'Quản lý Thẻ Tag', 'index': 3},
+      {'icon': Icons.warehouse_rounded, 'label': 'Quản lý Kho tài liệu', 'index': 4},
     ];
 
     return Container(

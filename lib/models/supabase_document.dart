@@ -4,6 +4,7 @@ class SupabaseDocument {
   final String id;
   final String title;
   final String description;
+  final String? storageLocationId;
   final String courseCode;
   final String fileUrl;
   final String fileName;
@@ -18,7 +19,8 @@ class SupabaseDocument {
     required this.id,
     required this.title,
     this.description = '',
-    this.courseCode = 'SE301',
+    this.storageLocationId,
+    this.courseCode = '',
     required this.fileUrl,
     required this.fileName,
     this.fileSize = 0,
@@ -33,6 +35,7 @@ class SupabaseDocument {
   SupabaseDocument copyWith({
     String? title,
     String? description,
+    String? storageLocationId,
     String? courseCode,
     String? fileUrl,
     String? fileName,
@@ -43,6 +46,7 @@ class SupabaseDocument {
       id: id,
       title: title ?? this.title,
       description: description ?? this.description,
+      storageLocationId: storageLocationId ?? this.storageLocationId,
       courseCode: courseCode ?? this.courseCode,
       fileUrl: fileUrl ?? this.fileUrl,
       fileName: fileName ?? this.fileName,
@@ -55,26 +59,32 @@ class SupabaseDocument {
     );
   }
 
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'title': title,
-    'description': description,
-    'course_code': courseCode,
-    'file_url': fileUrl,
-    'file_name': fileName,
-    'file_size': fileSize,
-    'owner_id': ownerId,
-    'owner_email': ownerEmail,
-    'owner_name': ownerName,
-    'created_at': createdAt.toIso8601String(),
-    'updated_at': updatedAt.toIso8601String(),
-  };
+  Map<String, dynamic> toMap() {
+    final map = <String, dynamic>{
+      'id': id,
+      'title': title,
+      'description': description,
+      'file_url': fileUrl,
+      'file_name': fileName,
+      'file_size': fileSize,
+      'owner_id': ownerId,
+      'owner_email': ownerEmail,
+      'owner_name': ownerName,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+    if (storageLocationId != null && storageLocationId!.isNotEmpty) {
+      map['storage_location_id'] = storageLocationId;
+    }
+    return map;
+  }
 
   factory SupabaseDocument.fromMap(Map<String, dynamic> map) => SupabaseDocument(
     id: map['id'] ?? '',
     title: map['title'] ?? '',
     description: map['description'] ?? '',
-    courseCode: map['course_code'] ?? 'SE301',
+    storageLocationId: map['storage_location_id']?.toString(),
+    courseCode: map['course_code']?.toString() ?? '',
     fileUrl: map['file_url'] ?? '',
     fileName: map['file_name'] ?? '',
     fileSize: map['file_size'] is int ? map['file_size'] : int.tryParse(map['file_size'].toString()) ?? 0,
