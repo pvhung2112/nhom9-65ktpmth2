@@ -1158,18 +1158,19 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
   }
 
   void _showQuickAddLocationDialog() {
-    final searchCtrl = TextEditingController(text: 'Đại học Thủy Lợi');
-    final nameCtrl = TextEditingController(text: 'Thư viện K1 - ĐH Thủy Lợi');
-    final bldCtrl = TextEditingController(text: 'Nhà K1 (Thư viện)');
-    final flCtrl = TextEditingController(text: 'Tầng 2');
-    final rmCtrl = TextEditingController(text: 'Phòng đọc Luận văn');
-    final cabCtrl = TextEditingController(text: 'Tủ số 03');
-    final shCtrl = TextEditingController(text: 'Ngăn số 02');
-    final latCtrl = TextEditingController(text: '21.0071');
-    final lngCtrl = TextEditingController(text: '105.8253');
+    final searchCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    final bldCtrl = TextEditingController();
+    final flCtrl = TextEditingController(text: 'Tầng 1');
+    final rmCtrl = TextEditingController();
+    final cabCtrl = TextEditingController();
+    final shCtrl = TextEditingController();
+    final latCtrl = TextEditingController();
+    final lngCtrl = TextEditingController();
 
     bool isSearching = false;
-    String? foundAddress = '175 Tây Sơn, Phường Trung Liệt, Quận Đống Đa, Hà Nội';
+    List<PlaceSearchResult> searchResults = [];
+    String? foundAddress;
 
     showDialog(
       context: context,
@@ -1178,14 +1179,14 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Row(
             children: [
-              Icon(Icons.travel_explore_rounded, color: Colors.teal),
+              Icon(Icons.map_rounded, color: Colors.teal),
               SizedBox(width: 8),
-              Text('Thêm Kho & Định Vị Tòa Nhà', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('Thêm Kho & Định Vị Bản Đồ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
           content: SingleChildScrollView(
             child: SizedBox(
-              width: 480,
+              width: 500,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1193,16 +1194,16 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.teal.shade50.withOpacity(0.6),
+                      color: Colors.blue.shade50.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.teal.shade200),
+                      border: Border.all(color: Colors.blue.shade200),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Tìm kiếm địa điểm trên bản đồ (VD: Đại học Thủy Lợi):',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.teal),
+                          'Tìm kiếm địa điểm bất kỳ trên bản đồ:',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
                         ),
                         const SizedBox(height: 6),
                         Row(
@@ -1211,33 +1212,35 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                               child: TextField(
                                 controller: searchCtrl,
                                 decoration: const InputDecoration(
-                                  hintText: 'Nhập địa điểm (ĐH Thủy Lợi, 175 Tây Sơn...)',
+                                  hintText: 'Nhập địa chỉ, tên tòa nhà, phố...',
                                   isDense: true,
                                   filled: true,
                                   fillColor: Colors.white,
                                   border: OutlineInputBorder(),
                                 ),
+                                onSubmitted: (val) async {
+                                  if (val.trim().isEmpty) return;
+                                  setDlgState(() => isSearching = true);
+                                  final results = await GeocodingService().searchLocation(val);
+                                  setDlgState(() {
+                                    searchResults = results;
+                                    isSearching = false;
+                                  });
+                                },
                               ),
                             ),
                             const SizedBox(width: 6),
                             FilledButton(
-                              style: FilledButton.styleFrom(backgroundColor: Colors.teal),
+                              style: FilledButton.styleFrom(backgroundColor: Colors.blue.shade700),
                               onPressed: isSearching ? null : () async {
                                 final val = searchCtrl.text.trim();
                                 if (val.isEmpty) return;
                                 setDlgState(() => isSearching = true);
                                 final results = await GeocodingService().searchLocation(val);
-                                if (results.isNotEmpty) {
-                                  final first = results.first;
-                                  setDlgState(() {
-                                    nameCtrl.text = first.name;
-                                    bldCtrl.text = first.building.isNotEmpty ? first.building : 'Tòa nhà chính';
-                                    latCtrl.text = first.latitude.toStringAsFixed(5);
-                                    lngCtrl.text = first.longitude.toStringAsFixed(5);
-                                    foundAddress = first.displayName;
-                                  });
-                                }
-                                setDlgState(() => isSearching = false);
+                                setDlgState(() {
+                                  searchResults = results;
+                                  isSearching = false;
+                                });
                               },
                               child: isSearching
                                   ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -1245,34 +1248,45 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
-                        const Text('Chọn nhanh tòa nhà ĐH Thủy Lợi:', style: TextStyle(fontSize: 11, color: Colors.black54)),
-                        const SizedBox(height: 4),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: GeocodingService.thuyLoiPresets.map((preset) => Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: ActionChip(
-                                label: Text(preset.name, style: const TextStyle(fontSize: 11)),
-                                onPressed: () {
-                                  setDlgState(() {
-                                    searchCtrl.text = preset.name;
-                                    nameCtrl.text = preset.name;
-                                    bldCtrl.text = preset.building;
-                                    latCtrl.text = preset.latitude.toStringAsFixed(5);
-                                    lngCtrl.text = preset.longitude.toStringAsFixed(5);
-                                    foundAddress = preset.displayName;
-                                  });
-                                },
-                              ),
-                            )).toList(),
+                        if (searchResults.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 120),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: searchResults.length,
+                              separatorBuilder: (_, _) => const Divider(height: 1),
+                              itemBuilder: (ctx, i) {
+                                final r = searchResults[i];
+                                return ListTile(
+                                  dense: true,
+                                  leading: const Icon(Icons.pin_drop_rounded, size: 18, color: Colors.redAccent),
+                                  title: Text(r.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  subtitle: Text(r.displayName, style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  onTap: () {
+                                    setDlgState(() {
+                                      nameCtrl.text = r.name;
+                                      bldCtrl.text = r.building;
+                                      latCtrl.text = r.latitude.toStringAsFixed(5);
+                                      lngCtrl.text = r.longitude.toStringAsFixed(5);
+                                      foundAddress = r.displayName;
+                                      searchResults = [];
+                                    });
+                                  },
+                                );
+                              },
+                            ),
                           ),
-                        ),
+                        ],
                         if (foundAddress != null) ...[
                           const SizedBox(height: 6),
                           Text(
-                            '📍 $foundAddress',
+                            '📍 ' + foundAddress!,
                             style: const TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.w600),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -1289,7 +1303,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(child: TextField(controller: bldCtrl, decoration: const InputDecoration(labelText: 'Tòa nhà', border: OutlineInputBorder(), isDense: true))),
+                      Expanded(child: TextField(controller: bldCtrl, decoration: const InputDecoration(labelText: 'Tòa nhà / Khu vực', border: OutlineInputBorder(), isDense: true))),
                       const SizedBox(width: 8),
                       Expanded(child: TextField(controller: flCtrl, decoration: const InputDecoration(labelText: 'Tầng', border: OutlineInputBorder(), isDense: true))),
                       const SizedBox(width: 8),
@@ -1322,7 +1336,9 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
               style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
               onPressed: () async {
                 var name = nameCtrl.text.trim();
-                if (name.isEmpty) name = '${bldCtrl.text.trim()} - ${rmCtrl.text.trim()}';
+                if (name.isEmpty) {
+                  name = bldCtrl.text.trim().isNotEmpty ? '${bldCtrl.text.trim()} - ${rmCtrl.text.trim()}' : 'Kho Lưu Trữ Mới';
+                }
                 final newLoc = StorageLocationItem(
                   id: const Uuid().v4(),
                   name: name,
@@ -1331,8 +1347,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                   room: rmCtrl.text.trim(),
                   cabinet: cabCtrl.text.trim(),
                   shelf: shCtrl.text.trim(),
-                  latitude: double.tryParse(latCtrl.text.trim()) ?? 21.00699,
-                  longitude: double.tryParse(lngCtrl.text.trim()) ?? 105.82510,
+                  latitude: double.tryParse(latCtrl.text.trim()) ?? 21.0285,
+                  longitude: double.tryParse(lngCtrl.text.trim()) ?? 105.8542,
                 );
                 await AppDatabase().insertStorageLocation(newLoc);
                 _supabaseService.insertStorageLocationOnline(newLoc);

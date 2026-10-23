@@ -24,81 +24,24 @@ class PlaceSearchResult {
   String get googleMapsUrl => 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
 }
 
-/// Dịch vụ Tìm kiếm Địa điểm & Tọa độ Bản đồ (OpenStreetMap / Photon Geocoding)
-/// Hoàn toàn miễn phí, không yêu cầu thẻ tín dụng hay Google API Key phức tạp
+/// Dịch vụ Tìm kiếm Địa điểm & Tọa độ Bản đồ Động (OpenStreetMap / Photon Geocoding)
+/// Hoàn toàn động theo bất kỳ từ khóa nào người dùng nhập, 0% fix cứng dữ liệu
 class GeocodingService {
   static final GeocodingService _instance = GeocodingService._internal();
   factory GeocodingService() => _instance;
   GeocodingService._internal();
 
-  /// Danh mục các địa điểm mẫu chuẩn xác tại Trường Đại học Thủy Lợi (175 Tây Sơn, Đống Đa, Hà Nội)
-  static final List<PlaceSearchResult> thuyLoiPresets = [
-    PlaceSearchResult(
-      name: 'Thư viện K1 - ĐH Thủy Lợi',
-      displayName: 'Nhà Thư viện K1, 175 Tây Sơn, Phường Trung Liệt, Quận Đống Đa, Hà Nội',
-      latitude: 21.0071,
-      longitude: 105.8253,
-      building: 'Nhà K1 (Thư viện)',
-      street: '175 Tây Sơn',
-      city: 'Hà Nội',
-    ),
-    PlaceSearchResult(
-      name: 'Tòa T5 - Khoa CNTT & KTPM (ĐH Thủy Lợi)',
-      displayName: 'Tòa nhà T5, Đại học Thủy Lợi, 175 Tây Sơn, Đống Đa, Hà Nội',
-      latitude: 21.0075,
-      longitude: 105.8246,
-      building: 'Tòa T5 (CNTT)',
-      street: '175 Tây Sơn',
-      city: 'Hà Nội',
-    ),
-    PlaceSearchResult(
-      name: 'Tòa A1 - Khu Giảng đường chính (ĐH Thủy Lợi)',
-      displayName: 'Tòa nhà A1, Đại học Thủy Lợi, 175 Tây Sơn, Đống Đa, Hà Nội',
-      latitude: 21.0073,
-      longitude: 105.8242,
-      building: 'Tòa A1',
-      street: '175 Tây Sơn',
-      city: 'Hà Nội',
-    ),
-    PlaceSearchResult(
-      name: 'Tòa B1 - Kho Giáo trình & Thí nghiệm (ĐH Thủy Lợi)',
-      displayName: 'Tòa nhà B1, Đại học Thủy Lợi, 175 Tây Sơn, Đống Đa, Hà Nội',
-      latitude: 21.0065,
-      longitude: 105.8256,
-      building: 'Tòa B1',
-      street: '175 Tây Sơn',
-      city: 'Hà Nội',
-    ),
-    PlaceSearchResult(
-      name: 'Cổng chính ĐH Thủy Lợi (175 Tây Sơn)',
-      displayName: 'Trường Đại học Thủy Lợi, 175 Phố Tây Sơn, Kim Liên, Đống Đa, Hà Nội',
-      latitude: 21.00699,
-      longitude: 105.82510,
-      building: 'Cổng chính',
-      street: '175 Tây Sơn',
-      city: 'Hà Nội',
-    ),
-  ];
-
-  /// Tìm kiếm địa điểm trực tuyến qua OpenStreetMap Photon API
+  /// Tìm kiếm địa điểm trực tuyến theo từ khóa người dùng nhập (không fix cứng)
   Future<List<PlaceSearchResult>> searchLocation(String query) async {
     final clean = query.trim();
     if (clean.isEmpty) return [];
 
-    // Kiểm tra nhanh trong danh sách Đại học Thủy Lợi trước
-    final lower = clean.toLowerCase();
-    final localMatches = thuyLoiPresets.where((p) =>
-      p.name.toLowerCase().contains(lower) ||
-      p.displayName.toLowerCase().contains(lower) ||
-      p.building.toLowerCase().contains(lower)
-    ).toList();
-
     try {
       final uri = Uri.parse(
-        'https://photon.komoot.io/api/?q=${Uri.encodeComponent(clean)}&limit=5',
+        'https://photon.komoot.io/api/?q=' + Uri.encodeComponent(clean) + '&limit=6',
       );
 
-      final res = await http.get(uri).timeout(const Duration(seconds: 4));
+      final res = await http.get(uri).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
         final features = data['features'] as List<dynamic>? ?? [];
@@ -115,12 +58,14 @@ class GeocodingService {
             final name = props['name']?.toString() ?? props['street']?.toString() ?? clean;
             final street = props['street']?.toString() ?? '';
             final city = props['city']?.toString() ?? props['state']?.toString() ?? '';
+            final district = props['district']?.toString() ?? '';
             final house = props['housenumber']?.toString() ?? '';
 
             final parts = [
               if (name.isNotEmpty) name,
-              if (house.isNotEmpty) 'số $house',
-              if (street.isNotEmpty) street,
+              if (house.isNotEmpty) 'số ' + house,
+              if (street.isNotEmpty && street != name) street,
+              if (district.isNotEmpty) district,
               if (city.isNotEmpty) city,
             ];
 
@@ -135,15 +80,12 @@ class GeocodingService {
             ));
           }
         }
-
-        if (results.isNotEmpty) {
-          return results;
-        }
+        return results;
       }
     } catch (e) {
       debugPrint('Geocoding search error: $e');
     }
 
-    return localMatches.isNotEmpty ? localMatches : thuyLoiPresets;
+    return [];
   }
 }

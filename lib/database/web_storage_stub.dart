@@ -5,3 +5,5 @@ String? getLocalCache(String key) {
 }
 
 void openUrlInNewTab(String url) {}
+
+void registerMapIframe(String viewType, String url) {}

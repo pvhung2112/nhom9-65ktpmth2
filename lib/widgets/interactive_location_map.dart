@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/physical_location.dart';
 import '../database/web_storage.dart';
 
-/// Widget Bản đồ tương tác vị trí tài liệu (Campus & Library Floor Map Viewer)
-/// Hỗ trợ hiển thị tọa độ GPS, bản đồ OpenStreetMap thực tế, sơ đồ kệ sách và liên kết Google Maps
+/// Widget Bản đồ hiển thị Google Maps thật 100% (Google Maps Embed Viewer)
+/// Không fix cứng, lấy đúng tọa độ GPS của kho/địa điểm để hiển thị Google Maps
 class InteractiveLocationMap extends StatelessWidget {
   final PhysicalLocation location;
   final String documentTitle;
@@ -16,7 +17,13 @@ class InteractiveLocationMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final staticMapUrl = 'https://staticmap.openstreetmap.de/staticmap.php?center=${location.latitude},${location.longitude}&zoom=17&size=600x300&maptype=mapnik&markers=${location.latitude},${location.longitude},ol-marker';
+    final lat = location.latitude;
+    final lng = location.longitude;
+    final embedUrl = 'https://maps.google.com/maps?q=$lat,$lng&hl=vi&z=16&output=embed';
+    final viewType = 'gmap-${lat.toStringAsFixed(4)}-${lng.toStringAsFixed(4)}';
+
+    // Đăng ký Iframe nhúng bản đồ Google Maps thật cho Flutter Web
+    registerMapIframe(viewType, embedUrl);
 
     return Container(
       decoration: BoxDecoration(
@@ -25,8 +32,8 @@ class InteractiveLocationMap extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade300),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -34,7 +41,7 @@ class InteractiveLocationMap extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header: Tên vị trí và Tòa nhà
+          // Header: Thông tin địa điểm
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -80,79 +87,59 @@ class InteractiveLocationMap extends StatelessWidget {
             ),
           ),
 
-          // Bản đồ OpenStreetMap thực tế & Lưới mô phỏng (Interactive Campus Map)
+          // KHU VỰC BẢN ĐỒ GOOGLE MAPS THẬT 100%
           SizedBox(
-            height: 190,
+            height: 230,
             child: ClipRect(
               child: Stack(
                 children: [
-                  // Lớp nền 1: Ảnh bản đồ OpenStreetMap thực tế từ tọa độ GPS
                   Positioned.fill(
-                    child: Image.network(
-                      staticMapUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => CustomPaint(
-                        size: const Size(double.infinity, 190),
-                        painter: _CampusGridPainter(),
-                      ),
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Stack(
-                          children: [
-                            CustomPaint(
-                              size: const Size(double.infinity, 190),
-                              painter: _CampusGridPainter(),
+                    child: kIsWeb
+                        ? HtmlElementView(viewType: viewType)
+                        : Image.network(
+                            'https://staticmap.openstreetmap.de/staticmap.php?center=$lat,$lng&zoom=16&size=600x300&maptype=mapnik&markers=$lat,$lng,ol-marker',
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: Colors.grey.shade200,
+                              child: const Center(
+                                child: Icon(Icons.map_rounded, size: 48, color: Colors.grey),
+                              ),
                             ),
-                            const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.teal),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                          ),
                   ),
 
-                  // Pin định vị tài liệu nổi bật
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  // Nút mở Google Maps chỉ đường góc trên bên phải
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () {
+                          openUrlInNewTab(location.googleMapsUrl);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFD81B60),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2)),
-                            ],
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade300),
                           ),
-                          child: Row(
+                          child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.menu_book_rounded, color: Colors.white, size: 13),
-                              const SizedBox(width: 4),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 160),
-                                child: Text(
-                                  documentTitle,
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                              Icon(Icons.open_in_new_rounded, size: 14, color: Colors.blue),
+                              SizedBox(width: 4),
+                              Text(
+                                'Mở Google Maps',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue),
                               ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.arrow_drop_down, color: Color(0xFFD81B60), size: 24),
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD81B60),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
 
@@ -167,55 +154,8 @@ class InteractiveLocationMap extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        'GPS: ${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}',
+                        'GPS: ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
                         style: const TextStyle(color: Colors.white, fontSize: 10, fontFamily: 'monospace'),
-                      ),
-                    ),
-                  ),
-
-                  // Nút mở Google Maps chỉ đường thực tế
-                  Positioned(
-                    bottom: 8,
-                    right: 10,
-                    child: Tooltip(
-                      message: 'Mở vị trí chính xác trên Google Maps',
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(6),
-                          onTap: () {
-                            openUrlInNewTab(location.googleMapsUrl);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('📍 Đang mở Google Maps tại tọa độ (${location.latitude}, ${location.longitude})'),
-                                backgroundColor: Colors.teal.shade800,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.grey.shade400),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 4, offset: const Offset(0, 1)),
-                              ],
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.map_rounded, size: 14, color: Colors.blue),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Google Maps',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                       ),
                     ),
                   ),
@@ -248,37 +188,4 @@ class InteractiveLocationMap extends StatelessWidget {
       ),
     );
   }
-}
-
-class _CampusGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = const Color(0xFFF1F5F9);
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
-
-    final pathPaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
-      ..strokeWidth = 14
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawLine(Offset(0, size.height * 0.4), Offset(size.width, size.height * 0.6), pathPaint);
-    canvas.drawLine(Offset(size.width * 0.35, 0), Offset(size.width * 0.65, size.height), pathPaint);
-
-    final bldPaint = Paint()..color = const Color(0xFFCBD5E1);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(20, 20, 80, 50), const Radius.circular(6)), bldPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width - 110, 30, 90, 60), const Radius.circular(6)), bldPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(30, size.height - 70, 100, 50), const Radius.circular(6)), bldPaint);
-
-    final libPaint = Paint()..color = Colors.teal.shade200;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(size.width / 2, size.height / 2), width: 140, height: 75),
-        const Radius.circular(10),
-      ),
-      libPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
