@@ -1060,7 +1060,7 @@ class SupabaseService {
 
     if (isOnlineMode) {
       try {
-        final uri = Uri.parse('$_supabaseUrl/rest/v1/borrow_requests');
+        final uri = Uri.parse('$_supabaseUrl/rest/v1/borrow_requests?on_conflict=id');
         final res = await http.post(
           uri,
           headers: {
@@ -1071,6 +1071,12 @@ class SupabaseService {
           },
           body: jsonEncode(request.toMap()),
         ).timeout(const Duration(seconds: 5));
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          debugPrint('✅ Supabase Cloud: Đã lưu yêu cầu mượn ${request.id} vào CSDL thật');
+          return true;
+        } else {
+          debugPrint('⚠️ Supabase Cloud createBorrowRequest trả về mã: ${res.statusCode} ${res.body}');
+        }
         return res.statusCode >= 200 && res.statusCode < 300;
       } catch (e) {
         debugPrint('Lỗi createBorrowRequest Supabase: $e');
@@ -1080,12 +1086,17 @@ class SupabaseService {
   }
 
   Future<List<BorrowRequest>> fetchBorrowRequests({String? borrowerEmail, String? ownerEmail}) async {
-    _loadBorrowRequestsFromCache();
     final List<BorrowRequest> results = [];
 
     if (isOnlineMode) {
       try {
-        final uri = Uri.parse('$_supabaseUrl/rest/v1/borrow_requests?select=*&order=request_date.desc');
+        String url = '$_supabaseUrl/rest/v1/borrow_requests?select=*&order=request_date.desc';
+        if (borrowerEmail != null && borrowerEmail.isNotEmpty) {
+          url += '&borrower_email=eq.${borrowerEmail.trim()}';
+        } else if (ownerEmail != null && ownerEmail.isNotEmpty) {
+          url += '&owner_email=eq.${ownerEmail.trim()}';
+        }
+        final uri = Uri.parse(url);
         final res = await http.get(
           uri,
           headers: {
@@ -1099,12 +1110,18 @@ class SupabaseService {
           for (var item in list) {
             final req = BorrowRequest.fromMap(Map<String, dynamic>.from(item));
             _borrowRequestsTable[req.id] = req;
+            results.add(req);
           }
+          _saveBorrowRequestsCache();
+          results.sort((a, b) => b.requestDate.compareTo(a.requestDate));
+          return results;
         }
       } catch (e) {
-        debugPrint('Lỗi fetchBorrowRequests: $e');
+        debugPrint('Lỗi fetchBorrowRequests Supabase: $e');
       }
     }
+
+    _loadBorrowRequestsFromCache();
 
     // Lọc theo borrower hoặc owner
     for (var req in _borrowRequestsTable.values) {
@@ -1140,13 +1157,20 @@ class SupabaseService {
             'apikey': _supabaseAnonKey!,
             'Authorization': 'Bearer $_supabaseAnonKey',
             'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
           },
           body: jsonEncode({
             'status': newStatus.name,
             if (newStatus == BorrowStatus.returned) 'return_date': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
           }),
         ).timeout(const Duration(seconds: 5));
-        return res.statusCode >= 200 && res.statusCode < 300;
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          debugPrint('✅ Supabase Cloud: Đã PATCH cập nhật trạng thái mượn ${newStatus.name} cho yêu cầu $requestId');
+          return true;
+        } else {
+          debugPrint('⚠️ Supabase Cloud PATCH updateBorrowRequestStatus lỗi: ${res.statusCode} ${res.body}');
+        }
       } catch (e) {
         debugPrint('Lỗi updateBorrowRequestStatus: $e');
       }
