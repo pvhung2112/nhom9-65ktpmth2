@@ -32,11 +32,20 @@ class HomePage extends StatelessWidget {
             slivers: [
               // Khối Gợi ý Thông minh TH2 (Recommendation AI)
               SliverToBoxAdapter(
-                child: RecommendationCarousel(
-                  recommendations: RecommendationService().getRecommendations(
-                    allDocuments: docs,
-                    currentUserId: FirebaseAuthService().currentUser?.id ?? '',
-                  ),
+                child: ListenableBuilder(
+                  listenable: RecommendationService(),
+                  builder: (context, _) {
+                    final auth = FirebaseAuthService();
+                    final recs = RecommendationService().getRecommendations(
+                      allDocuments: docs,
+                      currentUserId: auth.currentUser?.id ?? '',
+                      currentUserEmail: auth.currentUser?.email ?? '',
+                    );
+                    return RecommendationCarousel(
+                      recommendations: recs,
+                      allDocuments: docs,
+                    );
+                  },
                 ),
               ),
 
