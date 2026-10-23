@@ -66,7 +66,7 @@ class _StorageLocationsPageState extends State<StorageLocationsPage> {
           ),
           content: SingleChildScrollView(
             child: SizedBox(
-              width: 500,
+              width: MediaQuery.of(context).size.width > 540 ? 500.0 : (MediaQuery.of(context).size.width * 0.92),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,44 +333,57 @@ class _StorageLocationsPageState extends State<StorageLocationsPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final allDocs = _docDao.getAll();
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+    final isMobile = !isDesktop;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
-      body: CustomScrollView(
-        slivers: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: CustomScrollView(
+            slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+              padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 18 : 28, isMobile ? 16 : 24, 16),
               child: Row(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.teal.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.warehouse_rounded, color: Colors.teal, size: 24),
                             ),
-                            child: const Icon(Icons.warehouse_rounded, color: Colors.teal, size: 24),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Quản lý Kho Tài Liệu',
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Quản lý nơi cất giữ tài liệu bản cứng: Tòa nhà, Tầng, Phòng, Tủ và Ngăn',
-                        style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ],
+                            const SizedBox(width: 12),
+                            Text(
+                              'Quản lý Kho Tài Liệu',
+                              style: TextStyle(
+                                fontSize: isMobile ? 20 : 26,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Quản lý nơi cất giữ tài liệu bản cứng: Tòa nhà, Tầng, Phòng, Tủ và Ngăn',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: isMobile ? 11.5 : 13, color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   IconButton.filledTonal(
                     icon: _isLoading
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
@@ -378,14 +391,14 @@ class _StorageLocationsPageState extends State<StorageLocationsPage> {
                     tooltip: 'Đồng bộ từ Supabase Cloud',
                     onPressed: _isLoading ? null : _syncOnlineLocations,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.teal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 16, vertical: 12),
                     ),
                     icon: const Icon(Icons.add_location_alt_rounded, size: 18),
-                    label: const Text('Thêm Kho Mới', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: Text(isMobile ? 'Thêm' : 'Thêm Kho Mới', style: const TextStyle(fontWeight: FontWeight.bold)),
                     onPressed: _showAddLocationDialog,
                   ),
                 ],
@@ -415,7 +428,7 @@ class _StorageLocationsPageState extends State<StorageLocationsPage> {
               }
 
               return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 8),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
@@ -550,9 +563,12 @@ class _StorageLocationsPageState extends State<StorageLocationsPage> {
               );
             },
           ),
+          SliverToBoxAdapter(child: SizedBox(height: isMobile ? 95 : 40)),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildBadge(IconData icon, String label) {

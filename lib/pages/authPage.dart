@@ -112,11 +112,11 @@ class _AuthPageState extends State<AuthPage> {
       backgroundColor: const Color(0xFFF9F9FB),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          padding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width < 500 ? 16 : 24, vertical: 40),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
             child: Container(
-              padding: const EdgeInsets.all(36),
+              padding: EdgeInsets.all(MediaQuery.of(context).size.width < 500 ? 22 : 36),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),

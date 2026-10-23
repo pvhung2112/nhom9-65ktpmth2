@@ -137,44 +137,57 @@ class _TagManagementPageState extends State<TagManagementPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final allDocs = _docDao.getAll();
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+    final isMobile = !isDesktop;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
-      body: CustomScrollView(
-        slivers: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: CustomScrollView(
+            slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+              padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 18 : 28, isMobile ? 16 : 24, 16),
               child: Row(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD81B60).withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD81B60).withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.label_rounded, color: Color(0xFFD81B60), size: 24),
                             ),
-                            child: const Icon(Icons.label_rounded, color: Color(0xFFD81B60), size: 24),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Quản lý Thẻ Tag',
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Phân loại và tìm kiếm tài liệu theo chủ đề (Checklist 3)',
-                        style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ],
+                            const SizedBox(width: 12),
+                            Text(
+                              'Quản lý Thẻ Tag',
+                              style: TextStyle(
+                                fontSize: isMobile ? 20 : 26,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Phân loại và tìm kiếm tài liệu theo chủ đề',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: isMobile ? 11.5 : 13, color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   IconButton.filledTonal(
                     icon: _isLoading
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
@@ -182,14 +195,14 @@ class _TagManagementPageState extends State<TagManagementPage> {
                     tooltip: 'Đồng bộ từ Supabase Cloud',
                     onPressed: _isLoading ? null : _syncOnlineTags,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFFD81B60),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 16, vertical: 12),
                     ),
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Thêm Thẻ Tag', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: Text(isMobile ? 'Thêm' : 'Thêm Thẻ Tag', style: const TextStyle(fontWeight: FontWeight.bold)),
                     onPressed: _showAddTagDialog,
                   ),
                 ],
@@ -219,7 +232,7 @@ class _TagManagementPageState extends State<TagManagementPage> {
               }
 
               return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 8),
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 320,
@@ -305,8 +318,11 @@ class _TagManagementPageState extends State<TagManagementPage> {
               );
             },
           ),
+          SliverToBoxAdapter(child: SizedBox(height: isMobile ? 95 : 40)),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

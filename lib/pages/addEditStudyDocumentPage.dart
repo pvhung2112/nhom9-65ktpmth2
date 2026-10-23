@@ -595,6 +595,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+    final isMobile = !isDesktop;
     final deadlineText = _selectedDeadline != null
         ? DateFormat('dd/MM/yyyy').format(_selectedDeadline!)
         : 'Chưa đặt hạn nộp';
@@ -613,10 +615,13 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
             ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, 20, isMobile ? 16 : 24, 40),
           children: [
             if (_isReadOnly) ...[
               Container(
@@ -1151,7 +1156,9 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   void _showQuickAddTagDialog() {
@@ -1221,7 +1228,7 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
           ),
           content: SingleChildScrollView(
             child: SizedBox(
-              width: 500,
+              width: MediaQuery.of(context).size.width > 540 ? 500.0 : (MediaQuery.of(context).size.width * 0.92),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,

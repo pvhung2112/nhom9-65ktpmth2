@@ -144,7 +144,7 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
                 ],
               ),
               content: SizedBox(
-                width: 480,
+                width: MediaQuery.of(context).size.width > 520 ? 480.0 : (MediaQuery.of(context).size.width * 0.92),
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,6 +405,8 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currentUser = _authService.currentUser;
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+    final isMobile = !isDesktop;
 
     // Lọc danh sách tài liệu
     var filteredDocs = _allDocs;
@@ -431,42 +433,53 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FB),
-      body: CustomScrollView(
-        slivers: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: CustomScrollView(
+            slivers: [
           // 1. Top Header Bar
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+              padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 18 : 28, isMobile ? 16 : 24, 16),
               child: Row(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF7D8DF),
-                              borderRadius: BorderRadius.circular(12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF7D8DF),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.explore_rounded, color: Color(0xFFD81B60), size: 24),
                             ),
-                            child: const Icon(Icons.explore_rounded, color: Color(0xFFD81B60), size: 24),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Nơi mượn tài liệu',
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, letterSpacing: -0.5),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Khám phá kho tài liệu của tất cả người dùng và gửi yêu cầu mượn sách',
-                        style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ],
+                            const SizedBox(width: 12),
+                            Text(
+                              'Nơi mượn tài liệu',
+                              style: TextStyle(
+                                fontSize: isMobile ? 20 : 26,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Khám phá kho tài liệu của tất cả người dùng và gửi yêu cầu mượn sách',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: isMobile ? 11.5 : 13, color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   IconButton.filledTonal(
                     icon: _isLoading
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD81B60)))
@@ -482,7 +495,7 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
           // 2. Search Box
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 6),
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -518,7 +531,7 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
           // 3. Section: Các Kho tài liệu trong hệ thống
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+              padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, 16, isMobile ? 16 : 24, 8),
               child: Row(
                 children: [
                   const Icon(Icons.warehouse_rounded, size: 18, color: Color(0xFF00796B)),
@@ -739,7 +752,7 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 8),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
@@ -937,10 +950,15 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Chủ sở hữu: ${doc.ownerName}',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                                Expanded(
+                                  child: Text(
+                                    'Chủ sở hữu: ${doc.ownerName}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
                                 if (isMyDoc)
                                   OutlinedButton.icon(
                                     style: OutlinedButton.styleFrom(
@@ -1011,9 +1029,11 @@ class _ExploreBorrowPageState extends State<ExploreBorrowPage> {
               ),
             ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 50)),
+          SliverToBoxAdapter(child: SizedBox(height: isMobile ? 95 : 40)),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

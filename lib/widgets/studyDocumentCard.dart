@@ -735,7 +735,7 @@ class StudyDocumentCard extends StatelessWidget {
                 ],
               ),
               content: SizedBox(
-                width: 450,
+                width: MediaQuery.of(context).size.width > 500 ? 460.0 : (MediaQuery.of(context).size.width * 0.92),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -879,7 +879,7 @@ class StudyDocumentCard extends StatelessWidget {
           ],
         ),
         content: SizedBox(
-          width: 500,
+          width: MediaQuery.of(context).size.width > 540 ? 500.0 : (MediaQuery.of(context).size.width * 0.92),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1201,7 +1201,7 @@ class StudyDocumentCard extends StatelessWidget {
                 ],
               ),
               content: SizedBox(
-                width: 480,
+                width: MediaQuery.of(context).size.width > 520 ? 480.0 : (MediaQuery.of(context).size.width * 0.92),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

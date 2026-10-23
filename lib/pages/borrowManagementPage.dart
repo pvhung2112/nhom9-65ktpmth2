@@ -142,6 +142,8 @@ class _BorrowManagementPageState extends State<BorrowManagementPage> with Single
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+    final isMobile = !isDesktop;
     final incomingPending = _incomingRequests.where((r) => r.status == BorrowStatus.pending).toList();
 
     return Scaffold(
@@ -172,8 +174,16 @@ class _BorrowManagementPageState extends State<BorrowManagementPage> with Single
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.bookmark_added_rounded, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Tài liệu tôi đang mượn (${_myRequests.where((r) => r.status == BorrowStatus.approved || r.status == BorrowStatus.borrowed).length})'),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      isMobile
+                          ? 'Đang mượn (${_myRequests.where((r) => r.status == BorrowStatus.approved || r.status == BorrowStatus.borrowed).length})'
+                          : 'Tài liệu tôi đang mượn (${_myRequests.where((r) => r.status == BorrowStatus.approved || r.status == BorrowStatus.borrowed).length})',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: isMobile ? 12 : 13.5),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -182,12 +192,20 @@ class _BorrowManagementPageState extends State<BorrowManagementPage> with Single
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.inbox_rounded, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Duyệt yêu cầu mượn (${incomingPending.length})'),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      isMobile
+                          ? 'Duyệt mượn (${incomingPending.length})'
+                          : 'Duyệt yêu cầu mượn (${incomingPending.length})',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: isMobile ? 12 : 13.5),
+                    ),
+                  ),
                   if (incomingPending.isNotEmpty) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.circular(10),
@@ -204,20 +222,25 @@ class _BorrowManagementPageState extends State<BorrowManagementPage> with Single
           ],
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFD81B60)))
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildMyBorrowedTab(),
-                _buildIncomingRequestsTab(incomingPending),
-              ],
-            ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFD81B60)))
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildMyBorrowedTab(isMobile),
+                    _buildIncomingRequestsTab(incomingPending, isMobile),
+                  ],
+                ),
+        ),
+      ),
     );
   }
 
   // TAB 1: TÀI LIỆU TÔI ĐANG MƯỢN (Đã được chủ tài liệu Accept + Đang chờ duyệt)
-  Widget _buildMyBorrowedTab() {
+  Widget _buildMyBorrowedTab(bool isMobile) {
     final approvedList = _myRequests.where((r) => r.status == BorrowStatus.approved || r.status == BorrowStatus.borrowed).toList();
     final pendingList = _myRequests.where((r) => r.status == BorrowStatus.pending).toList();
     final otherList = _myRequests.where((r) => r.status != BorrowStatus.approved && r.status != BorrowStatus.borrowed && r.status != BorrowStatus.pending).toList();
@@ -273,7 +296,7 @@ class _BorrowManagementPageState extends State<BorrowManagementPage> with Single
     final df = DateFormat('dd/MM/yyyy');
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(isMobile ? 14 : 20, 16, isMobile ? 14 : 20, isMobile ? 95 : 30),
       children: [
         // 1. TÀI LIỆU ĐÃ ĐƯỢC DUYỆT MƯỢN (ĐANG MƯỢN)
         Row(
@@ -506,10 +529,19 @@ class _BorrowManagementPageState extends State<BorrowManagementPage> with Single
                     const Divider(height: 16),
                     Row(
                       children: [
-                        Text('Ngày gửi: ${df.format(r.requestDate)}  •  Hẹn trả: ${df.format(r.dueDate)}', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
-                        const Spacer(),
-                        if (r.notes.isNotEmpty)
-                          Text('Ghi chú: ${r.notes}', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+                        Expanded(
+                          child: Text('Ngày gửi: ${df.format(r.requestDate)}  •  Hẹn trả: ${df.format(r.dueDate)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                        ),
+                        if (r.notes.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Text('Ghi chú: ${r.notes}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+                        ],
                       ],
                     ),
                   ],
@@ -543,7 +575,7 @@ class _BorrowManagementPageState extends State<BorrowManagementPage> with Single
   }
 
   // TAB 2: DUYỆT YÊU CẦU MƯỢN TÀI LIỆU CỦA TÔI (CHỜ TÔI ACCEPT)
-  Widget _buildIncomingRequestsTab(List<BorrowRequest> pendingList) {
+  Widget _buildIncomingRequestsTab(List<BorrowRequest> pendingList, bool isMobile) {
     final processedList = _incomingRequests.where((r) => r.status != BorrowStatus.pending).toList();
     final df = DateFormat('dd/MM/yyyy');
 
@@ -574,7 +606,7 @@ class _BorrowManagementPageState extends State<BorrowManagementPage> with Single
     }
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(isMobile ? 14 : 20, 16, isMobile ? 14 : 20, isMobile ? 95 : 30),
       children: [
         // Banner hướng dẫn
         Container(

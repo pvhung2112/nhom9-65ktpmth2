@@ -78,7 +78,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 700;
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
 
     final pages = [
       HomePage(onNavigate: _onNavigate),
@@ -115,15 +115,44 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
           children: pages,
         ),
         bottomNavigationBar: NavigationBar(
+          height: 65,
           selectedIndex: _currentIndex,
           onDestinationSelected: _onNavigate,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          elevation: 3,
+          backgroundColor: Colors.white,
+          indicatorColor: const Color(0xFFF7D8DF),
           destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Trang chủ'),
-            NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Tài liệu'),
-            NavigationDestination(icon: Icon(Icons.explore_rounded), label: 'Nơi mượn'),
-            NavigationDestination(icon: Icon(Icons.bookmark_added_rounded), label: 'Đang mượn'),
-            NavigationDestination(icon: Icon(Icons.label_rounded), label: 'Thẻ Tag'),
-            NavigationDestination(icon: Icon(Icons.warehouse_rounded), label: 'Kho TL'),
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined, size: 22),
+              selectedIcon: Icon(Icons.home_rounded, size: 22, color: Color(0xFFD81B60)),
+              label: 'Trang chủ',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.menu_book_outlined, size: 22),
+              selectedIcon: Icon(Icons.menu_book_rounded, size: 22, color: Color(0xFFD81B60)),
+              label: 'Tài liệu',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.explore_outlined, size: 22),
+              selectedIcon: Icon(Icons.explore_rounded, size: 22, color: Color(0xFFD81B60)),
+              label: 'Khám phá',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bookmark_added_outlined, size: 22),
+              selectedIcon: Icon(Icons.bookmark_added_rounded, size: 22, color: Color(0xFFD81B60)),
+              label: 'Đang mượn',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.label_outlined, size: 22),
+              selectedIcon: Icon(Icons.label_rounded, size: 22, color: Color(0xFFD81B60)),
+              label: 'Thẻ Tag',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.warehouse_outlined, size: 22),
+              selectedIcon: Icon(Icons.warehouse_rounded, size: 22, color: Color(0xFFD81B60)),
+              label: 'Kho lưu',
+            ),
           ],
         ),
       );

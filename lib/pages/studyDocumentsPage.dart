@@ -133,12 +133,10 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
   @override
 
   Widget build(BuildContext context) {
-
     final theme = Theme.of(context);
-
     final currentType = _getCurrentTabType();
-
-
+    final isDesktop = MediaQuery.of(context).size.width >= 768;
+    final isMobile = !isDesktop;
 
     return Scaffold(
 
@@ -152,7 +150,7 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
         icon: const Icon(Icons.add_rounded),
 
-        label: const Text('Thêm tài liệu'),
+        label: Text(isMobile ? 'Thêm' : 'Thêm tài liệu'),
 
         onPressed: () {
 
@@ -168,65 +166,44 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
       ),
 
-      body: CustomScrollView(
-
-        slivers: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: CustomScrollView(
+            slivers: [
 
           // Header Bar
-
           SliverToBoxAdapter(
-
             child: Padding(
-
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-
+              padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 16 : 24, isMobile ? 16 : 24, 12),
               child: Row(
-
                 children: [
-
-                  Column(
-
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-
-                      const Text(
-
-                        'Kho Tài liệu Học tập',
-
-                        style: TextStyle(
-
-                          fontSize: 24,
-
-                          fontWeight: FontWeight.bold,
-
-                          letterSpacing: -0.5,
-
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Kho Tài liệu Học tập',
+                          style: TextStyle(
+                            fontSize: isMobile ? 20 : 24,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          ),
                         ),
-
-                      ),
-
-                      const SizedBox(height: 2),
-
-                      Text(
-
-                        'Lưu trữ bài giảng, bài tập và tài liệu tham khảo',
-
-                        style: TextStyle(
-
-                          fontSize: 13,
-
-                          color: theme.colorScheme.onSurfaceVariant,
-
+                        const SizedBox(height: 2),
+                        Text(
+                          'Lưu trữ bài giảng, bài tập và tài liệu tham khảo',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: isMobile ? 11.5 : 13,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-
-                      ),
-
-                    ],
-
+                      ],
+                    ),
                   ),
-
-                  const Spacer(),
+                  const SizedBox(width: 8),
 
                   IconButton.filledTonal(
 
@@ -279,12 +256,9 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
 
           // Type Tab Pills
-
           SliverToBoxAdapter(
-
             child: Padding(
-
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 6),
 
               child: Container(
 
@@ -344,7 +318,7 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
               return SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 10),
+                  padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, 4, isMobile ? 16 : 24, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -498,8 +472,7 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
 
               return SliverPadding(
-
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
 
                 sliver: SliverList(
 
@@ -560,13 +533,12 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
 
 
-          const SliverToBoxAdapter(child: SizedBox(height: 80)),
-
+          SliverToBoxAdapter(child: SizedBox(height: isMobile ? 95 : 50)),
         ],
-
       ),
-
-    );
+    ),
+  ),
+);
 
   }
 
@@ -728,7 +700,7 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                 ],
               ),
               content: SizedBox(
-                width: 520,
+                width: MediaQuery.of(context).size.width > 560 ? 520.0 : (MediaQuery.of(context).size.width * 0.92),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
