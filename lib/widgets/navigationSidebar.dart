@@ -26,7 +26,7 @@ class NavigationSidebar extends StatelessWidget {
     ];
 
     return Container(
-      width: 250,
+      width: 265,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -57,25 +57,27 @@ class NavigationSidebar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cashew Study',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurface,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cashew Study',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Quản lý Tài liệu Cloud',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurfaceVariant,
+                      Text(
+                        'Quản lý Tài liệu Cloud',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -111,13 +113,17 @@ class NavigationSidebar extends StatelessWidget {
                               size: 22,
                               color: isSelected ? const Color(0xFFD81B60) : theme.colorScheme.onSurfaceVariant,
                             ),
-                            const SizedBox(width: 14),
-                            Text(
-                              item['label'] as String,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? const Color(0xFFD81B60) : theme.colorScheme.onSurface,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                item['label'] as String,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: isSelected ? const Color(0xFFD81B60) : theme.colorScheme.onSurface,
+                                ),
                               ),
                             ),
                           ],
