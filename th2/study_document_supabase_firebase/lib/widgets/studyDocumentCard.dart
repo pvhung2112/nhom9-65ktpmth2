@@ -12,6 +12,7 @@ import '../models/physical_location.dart';
 import '../widgets/interactive_location_map.dart';
 import '../services/notification_service.dart';
 import '../pages/addEditStudyDocumentPage.dart';
+import 'package:url_launcher/url_launcher.dart';
 class StudyDocumentCard extends StatelessWidget {
   final StudyDocument document;
   final ValueChanged<DocumentStatus>? onStatusChanged;
@@ -395,6 +396,103 @@ class StudyDocumentCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (document.tags.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: document.tags.map((tag) {
+                      final cleanTag = tag.trim().startsWith('#') ? tag.trim() : '#${tag.trim()}';
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0F4F8),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blueGrey.shade200),
+                        ),
+                        child: Text(
+                          cleanTag,
+                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade800),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+                if (document.physicalLocation.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () => _showLocationMapDialog(context),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.teal.shade200),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on_rounded, size: 13, color: Colors.teal),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              '${document.physicalLocation} (${document.shelfLocation})',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.teal),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.shade700,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.map_rounded, size: 10, color: Colors.white),
+                                SizedBox(width: 2),
+                                Text(
+                                  'Bản đồ & Kệ',
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Tooltip(
+                            message: 'Mở vị trí trực tiếp trên Google Maps',
+                            child: InkWell(
+                              onTap: () => _launchGoogleMapsDirect(context),
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1A73E8),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.open_in_new_rounded, size: 10, color: Colors.white),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      'Google Maps',
+                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
 
                 // Footer: Deadline, Status, Toggle
@@ -561,6 +659,38 @@ class StudyDocumentCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _launchGoogleMapsDirect(BuildContext context) async {
+    final lat = document.latitude != 0.0 ? document.latitude : 10.8700;
+    final lng = document.longitude != 0.0 ? document.longitude : 106.8030;
+    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+        webOnlyWindowName: '_blank',
+      );
+      if (!launched) await launchUrl(uri);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📍 Đang mở Google Maps: $lat, $lng'),
+            backgroundColor: const Color(0xFF1976D2),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể mở Google Maps: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
   }
 
   void _showLocationMapDialog(BuildContext context) {

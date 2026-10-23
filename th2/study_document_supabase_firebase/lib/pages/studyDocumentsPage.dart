@@ -52,6 +52,8 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
   String? _selectedCourseId;
 
+  String? _selectedTag;
+
   bool _isLoadingFromCloud = false;
 
 
@@ -438,6 +440,57 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
           ),
 
+          // Checklist 3: Thanh loc The Tag (Tag Filter Bar)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+              child: Builder(
+                builder: (context) {
+                  final allDocs = _documentDao.getAll();
+                  final tagSet = <String>{};
+                  for (final d in allDocs) {
+                    for (final t in d.tags) {
+                      final clean = t.trim();
+                      if (clean.isNotEmpty) {
+                        tagSet.add(clean.startsWith('#') ? clean : '#$clean');
+                      }
+                    }
+                  }
+                  final defaultTags = ['#flutter', '#firebase', '#supabase', '#database', '#microservice', '#kiến trúc'];
+                  for (final dt in defaultTags) {
+                    tagSet.add(dt);
+                  }
+                  final tagList = tagSet.toList();
+
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildTagFilterChip(
+                          label: 'Tất cả thẻ Tag',
+                          isSelected: _selectedTag == null,
+                          onTap: () => setState(() => _selectedTag = null),
+                        ),
+                        const SizedBox(width: 8),
+                        ...tagList.map((tag) {
+                          final isSel = _selectedTag == tag;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _buildTagFilterChip(
+                              label: tag,
+                              isSelected: isSel,
+                              onTap: () => setState(() => _selectedTag = isSel ? null : tag),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
 
 
           // Document List
@@ -472,6 +525,17 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
                 documents = documents.where((d) => d.courseId == _selectedCourseId).toList();
 
+              }
+
+              // Checklist 3: Instant filter by Tag
+              if (_selectedTag != null && _selectedTag!.isNotEmpty) {
+                final targetTag = _selectedTag!.toLowerCase().replaceAll('#', '').trim();
+                documents = documents.where((d) {
+                  return d.tags.any((t) {
+                    final cleanT = t.toLowerCase().replaceAll('#', '').trim();
+                    return cleanT == targetTag;
+                  });
+                }).toList();
               }
 
 
@@ -725,6 +789,47 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
     );
 
+  }
+
+  Widget _buildTagFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFE0F2F1) : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.teal : Colors.grey.shade300,
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.tag_rounded,
+              size: 13,
+              color: isSelected ? Colors.teal.shade800 : Colors.grey.shade600,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.teal.shade800 : Colors.grey.shade700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
 

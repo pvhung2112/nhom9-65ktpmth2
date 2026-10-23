@@ -201,6 +201,11 @@ class SupabaseService {
     required String fileUrl,
     required String fileName,
     required int fileSize,
+    String? physicalLocation,
+    String? shelfLocation,
+    double? latitude,
+    double? longitude,
+    List<String>? tags,
     required SupabaseUser currentUser,
   }) async {
     // Đảm bảo user đã được lưu vào bảng users trước để thỏa mãn Foreign Key
@@ -250,6 +255,15 @@ class SupabaseService {
       try {
         final uri = Uri.parse('$_supabaseUrl/rest/v1/documents');
         final payload = newDoc.toMap()..['owner_id'] = effectiveOwnerId;
+        if (physicalLocation != null && physicalLocation.isNotEmpty) {
+          payload['physical_location'] = physicalLocation;
+        }
+        if (shelfLocation != null && shelfLocation.isNotEmpty) {
+          payload['shelf_location'] = shelfLocation;
+        }
+        if (latitude != null) payload['latitude'] = latitude;
+        if (longitude != null) payload['longitude'] = longitude;
+
         final res = await http.post(
           uri,
           headers: {
@@ -262,6 +276,42 @@ class SupabaseService {
         ).timeout(const Duration(seconds: 6));
         if (res.statusCode >= 200 && res.statusCode < 300) {
           debugPrint('✅ Supabase Cloud: Đã thêm tài liệu thành công: ${newDoc.title}');
+        } else if (res.statusCode == 400 && res.body.contains('Could not find')) {
+          // Schema fallback: Nhúng metadata vị trí và tags vào description
+          final metaMap = <String, dynamic>{};
+          if (tags != null && tags.isNotEmpty) metaMap['tags'] = tags;
+          if (physicalLocation != null && physicalLocation.isNotEmpty) metaMap['loc'] = physicalLocation;
+          if (shelfLocation != null && shelfLocation.isNotEmpty) metaMap['shelf'] = shelfLocation;
+          if (latitude != null) metaMap['lat'] = latitude;
+          if (longitude != null) metaMap['lng'] = longitude;
+          final encodedDesc = metaMap.isNotEmpty ? '$description<!--META:${jsonEncode(metaMap)}-->' : description;
+
+          final fallbackPayload = {
+            'id': newDoc.id,
+            'title': newDoc.title,
+            'description': encodedDesc,
+            'file_url': newDoc.fileUrl,
+            'file_name': newDoc.fileName,
+            'file_size': newDoc.fileSize,
+            'owner_id': effectiveOwnerId,
+            'owner_email': newDoc.ownerEmail,
+            'owner_name': newDoc.ownerName,
+          };
+          final retryRes = await http.post(
+            uri,
+            headers: {
+              'apikey': _supabaseAnonKey!,
+              'Authorization': 'Bearer $_supabaseAnonKey',
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
+            },
+            body: jsonEncode(fallbackPayload),
+          ).timeout(const Duration(seconds: 6));
+          if (retryRes.statusCode >= 200 && retryRes.statusCode < 300) {
+            debugPrint('✅ Supabase Cloud: Đã thêm tài liệu thành công (Fallback Schema): ${newDoc.title}');
+          } else {
+            debugPrint('❌ Supabase Cloud lỗi thêm tài liệu: ${retryRes.statusCode} ${retryRes.body}');
+          }
         } else {
           debugPrint('❌ Supabase Cloud lỗi thêm tài liệu: ${res.statusCode} ${res.body}');
         }
@@ -280,6 +330,11 @@ class SupabaseService {
     required String newDescription,
     String? newCourseCode,
     String? newFileUrl,
+    String? newPhysicalLocation,
+    String? newShelfLocation,
+    double? newLatitude,
+    double? newLongitude,
+    List<String>? newTags,
     required String currentUserId,
   }) async {
     final doc = _documentsTable[documentId];
@@ -318,6 +373,14 @@ class SupabaseService {
         if (newFileUrl != null && newFileUrl.isNotEmpty) {
           patchBody['file_url'] = newFileUrl;
         }
+        if (newPhysicalLocation != null && newPhysicalLocation.isNotEmpty) {
+          patchBody['physical_location'] = newPhysicalLocation;
+        }
+        if (newShelfLocation != null && newShelfLocation.isNotEmpty) {
+          patchBody['shelf_location'] = newShelfLocation;
+        }
+        if (newLatitude != null) patchBody['latitude'] = newLatitude;
+        if (newLongitude != null) patchBody['longitude'] = newLongitude;
 
         final res = await http.patch(
           uri,
@@ -584,6 +647,60 @@ class SupabaseService {
         final ownerName = map['owner_name']?.toString() ?? ownerEmail;
         final currentEmail = currentUser.email.toLowerCase().trim();
 
+        // Trích xuất thông tin Vị trí vật lý & Kệ sách (Checklist 3)
+        final rawDesc = map['description']?.toString() ?? '';
+        String rawLocation = map['physical_location']?.toString() ?? 'Thư viện Trung tâm - Tòa H1';
+        String rawShelf = map['shelf_location']?.toString() ?? 'Kệ A3 - Ngăn 02';
+        double rawLat = (map['latitude'] as num?)?.toDouble() ?? 10.8700;
+        double rawLng = (map['longitude'] as num?)?.toDouble() ?? 106.8030;
+        String rawBorrowStatus = map['borrow_status']?.toString() ?? 'available';
+
+        // Trích xuất thẻ Tags (Checklist 3)
+        List<String> docTags = [];
+        if (map['tags'] != null) {
+          if (map['tags'] is List) {
+            docTags = (map['tags'] as List).map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+          } else if (map['tags'] is String) {
+            final str = map['tags'] as String;
+            if (str.startsWith('[')) {
+              try {
+                docTags = (jsonDecode(str) as List).map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+              } catch (_) {
+                docTags = str.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+              }
+            } else {
+              docTags = str.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+            }
+          }
+        }
+
+        // Nhận diện metadata đã được lưu trong description dạng <!--META:{...}-->
+        if (rawDesc.contains('<!--META:') && rawDesc.contains('-->')) {
+          try {
+            final metaJson = rawDesc.split('<!--META:').last.split('-->').first;
+            final metaObj = jsonDecode(metaJson) as Map<String, dynamic>;
+            if (metaObj['tags'] is List && (docTags.isEmpty || docTags.length <= 1)) {
+              docTags = (metaObj['tags'] as List).map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+            }
+            if (metaObj['loc'] != null) rawLocation = metaObj['loc'].toString();
+            if (metaObj['shelf'] != null) rawShelf = metaObj['shelf'].toString();
+            if (metaObj['lat'] != null) rawLat = (metaObj['lat'] as num).toDouble();
+            if (metaObj['lng'] != null) rawLng = (metaObj['lng'] as num).toDouble();
+          } catch (_) {}
+        }
+
+        final cleanDesc = rawDesc.contains('<!--META:') ? rawDesc.split('<!--META:').first : rawDesc;
+
+        if (docTags.isEmpty) {
+          final tagMatches = RegExp(r'#([\w\u00C0-\u024F\u1E00-\u1EFF]+)').allMatches(cleanDesc);
+          for (var m in tagMatches) {
+            docTags.add(m.group(0)!);
+          }
+        }
+        if (docTags.isEmpty) {
+          docTags = ['#flutter', '#firebase', '#supabase'];
+        }
+
         // Kiểm tra xem có phải chủ sở hữu tài liệu không
         final isOwner = (ownerEmail == currentEmail) || (ownerId == currentUser.id);
 
@@ -591,7 +708,7 @@ class SupabaseService {
           accessibleDocs.add(StudyDocument(
             id: docId,
             title: map['title']?.toString() ?? 'Tài liệu không tên',
-            description: map['description']?.toString() ?? '',
+            description: cleanDesc,
             courseId: (map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS402' ? 'c2' : ((map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS205' ? 'c3' : 'c1'),
             type: DocumentType.lecture,
             fileUrl: map['file_url']?.toString() ?? '',
@@ -600,6 +717,12 @@ class SupabaseService {
             ownerName: ownerName,
             sharedPermission: 'owner',
             isSynced: true,
+            tags: docTags,
+            physicalLocation: rawLocation,
+            shelfLocation: rawShelf,
+            latitude: rawLat,
+            longitude: rawLng,
+            borrowStatus: rawBorrowStatus,
           ));
           continue;
         }
@@ -632,7 +755,7 @@ class SupabaseService {
           accessibleDocs.add(StudyDocument(
             id: docId,
             title: map['title']?.toString() ?? 'Tài liệu không tên',
-            description: map['description']?.toString() ?? '',
+            description: cleanDesc,
             courseId: (map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS402' ? 'c2' : ((map['course_code']?.toString() ?? 'SE301').toUpperCase() == 'CS205' ? 'c3' : 'c1'),
             type: DocumentType.lecture,
             fileUrl: map['file_url']?.toString() ?? '',
@@ -643,6 +766,12 @@ class SupabaseService {
             permissions: parsedPerms,
             sharedByEmail: ownerEmail,
             isSynced: true,
+            tags: docTags,
+            physicalLocation: rawLocation,
+            shelfLocation: rawShelf,
+            latitude: rawLat,
+            longitude: rawLng,
+            borrowStatus: rawBorrowStatus,
           ));
         }
       }

@@ -18,6 +18,7 @@ class PhysicalLocation {
   });
 
   String get googleMapsUrl => 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
+  String get directionsUrl => 'https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude';
 
   String get fullAddress => '$locationName ($floor, $shelfNumber) - $campusName';
 

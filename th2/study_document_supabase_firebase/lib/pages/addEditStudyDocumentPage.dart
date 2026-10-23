@@ -12,6 +12,9 @@ import '../database/study_course_dao.dart';
 import '../services/firebase_storage_service.dart';
 import '../services/local_file_picker.dart';
 import '../services/supabase_service.dart';
+import '../models/physical_location.dart';
+import '../widgets/interactive_location_map.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AddEditDocumentPage extends StatefulWidget {
   final StudyDocument? initialDocument;
@@ -35,6 +38,21 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
   late TextEditingController _tagsController;
   late TextEditingController _physicalLocationController;
   late TextEditingController _shelfLocationController;
+  late TextEditingController _latitudeController;
+  late TextEditingController _longitudeController;
+
+  static const List<String> _presetTags = [
+    '#microservice',
+    '#flutter',
+    '#firebase',
+    '#supabase',
+    '#database',
+    '#kiến trúc',
+    '#cloud',
+    '#devops',
+    '#ôn thi',
+    '#đồ án',
+  ];
 
   String? _selectedCourseId;
   DocumentType _selectedType = DocumentType.lecture;
@@ -62,6 +80,8 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     _tagsController = TextEditingController(text: doc?.tags.join(', ') ?? '');
     _physicalLocationController = TextEditingController(text: doc?.physicalLocation ?? 'Thư viện Trung tâm - Tòa H1');
     _shelfLocationController = TextEditingController(text: doc?.shelfLocation ?? 'Kệ A3 - Ngăn 02');
+    _latitudeController = TextEditingController(text: (doc?.latitude ?? 10.8700).toString());
+    _longitudeController = TextEditingController(text: (doc?.longitude ?? 106.8030).toString());
     _selectedCourseId = doc?.courseId;
     _selectedType = doc?.type ?? DocumentType.lecture;
     _selectedStatus = doc?.status ?? DocumentStatus.todo;
@@ -103,7 +123,116 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     _tagsController.dispose();
     _physicalLocationController.dispose();
     _shelfLocationController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
+  }
+
+  void _togglePresetTag(String tag) {
+    if (_isReadOnly) return;
+    final cleanTag = tag.trim().startsWith('#') ? tag.trim().substring(1) : tag.trim();
+    final currentTags = _tagsController.text
+        .split(',')
+        .map((e) => e.trim().replaceAll('#', ''))
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    if (currentTags.any((t) => t.toLowerCase() == cleanTag.toLowerCase())) {
+      currentTags.removeWhere((t) => t.toLowerCase() == cleanTag.toLowerCase());
+    } else {
+      currentTags.add(cleanTag);
+    }
+
+    setState(() {
+      _tagsController.text = currentTags.join(', ');
+    });
+  }
+
+  void _applyPresetLocation(PhysicalLocation loc) {
+    if (_isReadOnly) return;
+    setState(() {
+      _physicalLocationController.text = loc.locationName;
+      _shelfLocationController.text = loc.shelfNumber;
+      _latitudeController.text = loc.latitude.toString();
+      _longitudeController.text = loc.longitude.toString();
+    });
+  }
+
+  void _previewLocationMap() {
+    final lat = double.tryParse(_latitudeController.text.trim()) ?? 10.8700;
+    final lng = double.tryParse(_longitudeController.text.trim()) ?? 106.8030;
+    final loc = PhysicalLocation(
+      locationName: _physicalLocationController.text.trim().isNotEmpty
+          ? _physicalLocationController.text.trim()
+          : 'Thư viện Trung tâm - Tòa H1',
+      shelfNumber: _shelfLocationController.text.trim().isNotEmpty
+          ? _shelfLocationController.text.trim()
+          : 'Kệ A3 - Ngăn 02',
+      latitude: lat,
+      longitude: lng,
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(16),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InteractiveLocationMap(
+                location: loc,
+                documentTitle: _titleController.text.trim().isNotEmpty
+                    ? _titleController.text.trim()
+                    : 'Tài liệu học tập',
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Đóng'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openGoogleMapsTest() async {
+    final lat = double.tryParse(_latitudeController.text.trim()) ?? 10.8700;
+    final lng = double.tryParse(_longitudeController.text.trim()) ?? 106.8030;
+    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+        webOnlyWindowName: '_blank',
+      );
+      if (!launched) await launchUrl(uri);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📍 Đang mở Google Maps kiểm tra: $lat, $lng'),
+            backgroundColor: const Color(0xFF1976D2),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể mở Google Maps: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _pickDeadline() async {
@@ -434,6 +563,11 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
     final fileName = _uploadedFileName ?? (fileUrl.isNotEmpty ? 'TaiLieu_${DateTime.now().millisecondsSinceEpoch}.pdf' : '');
     final fileSize = _uploadedFileSize > 0 ? _uploadedFileSize : 10240;
 
+    final physicalLocation = _physicalLocationController.text.trim();
+    final shelfLocation = _shelfLocationController.text.trim();
+    final latitude = double.tryParse(_latitudeController.text.trim()) ?? 10.8700;
+    final longitude = double.tryParse(_longitudeController.text.trim()) ?? 106.8030;
+
     // Sync via SupabaseService
 
     if (_isEdit) {
@@ -446,6 +580,11 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
           newDescription: _descController.text.trim(),
           newCourseCode: courseCode,
           newFileUrl: fileUrl,
+          newPhysicalLocation: physicalLocation,
+          newShelfLocation: shelfLocation,
+          newLatitude: latitude,
+          newLongitude: longitude,
+          newTags: tags,
           currentUserId: currentUser.id,
         );
         debugPrint('Kết quả cập nhật Supabase Cloud: $ok');
@@ -463,6 +602,10 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         tags: tags,
         deadline: _selectedDeadline,
         isPinned: _isPinned,
+        physicalLocation: physicalLocation,
+        shelfLocation: shelfLocation,
+        latitude: latitude,
+        longitude: longitude,
       );
       await _documentDao.update(updated);
       // Đã lưu trực tiếp lên Supabase Cloud ở trên
@@ -475,6 +618,11 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         fileUrl: fileUrl,
         fileName: fileName,
         fileSize: fileSize,
+        physicalLocation: physicalLocation,
+        shelfLocation: shelfLocation,
+        latitude: latitude,
+        longitude: longitude,
+        tags: tags,
         currentUser: currentUser,
       );
       final docId = savedSupabaseDoc.id;
@@ -494,6 +642,10 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
         ownerEmail: savedSupabaseDoc.ownerEmail,
         ownerName: savedSupabaseDoc.ownerName,
         sharedPermission: 'owner',
+        physicalLocation: physicalLocation,
+        shelfLocation: shelfLocation,
+        latitude: latitude,
+        longitude: longitude,
       );
       await _documentDao.insert(newDoc);
       // Đã lưu trực tiếp lên Supabase Cloud ở trên
@@ -877,15 +1029,251 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
             ),
             const SizedBox(height: 16),
 
-            // Tags
-            TextFormField(
-              controller: _tagsController,
-              readOnly: _isReadOnly,
-              decoration: const InputDecoration(
-                labelText: 'Thẻ tag (ngăn cách bằng dấu phẩy)',
-                hintText: 'KTPM, Firebase, Supabase, RLS',
-                prefixIcon: Icon(Icons.tag_rounded),
-                border: OutlineInputBorder(),
+            // ================================================================
+            // CHECKLIST 3: PHÂN LOẠI BẰNG TAGS
+            // ================================================================
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.tag_rounded, color: Color(0xFF1976D2), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Phân loại bằng Thẻ Tag (Checklist 3)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            Text(
+                              'Gắn thẻ để phân loại chuyên đề và gợi ý thông minh',
+                              style: TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _tagsController,
+                    readOnly: _isReadOnly,
+                    decoration: const InputDecoration(
+                      labelText: 'Thẻ tag (ngăn cách bằng dấu phẩy)',
+                      hintText: 'microservice, flutter, firebase, database',
+                      prefixIcon: Icon(Icons.tag_rounded),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text('Chọn nhanh các thẻ tag gợi ý:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: _presetTags.map((t) {
+                      final cleanT = t.replaceAll('#', '').toLowerCase();
+                      final currentTags = _tagsController.text
+                          .split(',')
+                          .map((e) => e.trim().replaceAll('#', '').toLowerCase())
+                          .toList();
+                      final isSelected = currentTags.contains(cleanT);
+                      return FilterChip(
+                        label: Text(t, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : Colors.black87)),
+                        selected: isSelected,
+                        selectedColor: const Color(0xFF1976D2),
+                        checkmarkColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        onSelected: _isReadOnly ? null : (_) => _togglePresetTag(t),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ================================================================
+            // CHECKLIST 3: ĐỊNH VỊ VỊ TRÍ VẬT LÝ & BẢN ĐỒ KỆ SÁCH
+            // ================================================================
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.teal.shade50.withOpacity(0.4),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.teal.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.location_on_rounded, color: Colors.teal, size: 22),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Định vị Vị trí Vật lý & Kệ sách (Checklist 3)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.teal),
+                            ),
+                            Text(
+                              'Quản lý vị trí bản cứng/sách trong thư viện & phòng học',
+                              style: TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  const Text('Chọn nhanh vị trí khuôn viên trường mẫu:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.teal)),
+                  const SizedBox(height: 6),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: PhysicalLocation.presetLocations.map((loc) {
+                        final isCur = _physicalLocationController.text.trim() == loc.locationName;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ActionChip(
+                            avatar: Icon(Icons.pin_drop_rounded, size: 14, color: isCur ? Colors.white : Colors.teal),
+                            backgroundColor: isCur ? Colors.teal : Colors.white,
+                            label: Text(
+                              loc.locationName.split(' - ').first,
+                              style: TextStyle(fontSize: 11, color: isCur ? Colors.white : Colors.black87, fontWeight: isCur ? FontWeight.bold : FontWeight.normal),
+                            ),
+                            onPressed: _isReadOnly ? null : () => _applyPresetLocation(loc),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Tên phòng/tòa nhà
+                  TextFormField(
+                    controller: _physicalLocationController,
+                    readOnly: _isReadOnly,
+                    decoration: const InputDecoration(
+                      labelText: 'Tên khuôn viên / Tòa nhà / Phòng thư viện *',
+                      hintText: 'VD: Thư viện Trung tâm - Tòa H1',
+                      prefixIcon: Icon(Icons.business_rounded, color: Colors.teal),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Số kệ / Ngăn sách
+                  TextFormField(
+                    controller: _shelfLocationController,
+                    readOnly: _isReadOnly,
+                    decoration: const InputDecoration(
+                      labelText: 'Số Kệ sách & Ngăn cụ thể *',
+                      hintText: 'VD: Kệ A3 - Ngăn 02 (Sách CNTT & Phần mềm)',
+                      prefixIcon: Icon(Icons.shelves, color: Colors.teal),
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Tọa độ GPS (Vĩ độ & Kinh độ)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _latitudeController,
+                          readOnly: _isReadOnly,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            labelText: 'Tọa độ GPS: Vĩ độ (Lat)',
+                            hintText: '10.8700',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _longitudeController,
+                          readOnly: _isReadOnly,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            labelText: 'Tọa độ GPS: Kinh độ (Lng)',
+                            hintText: '106.8030',
+                            isDense: true,
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Các nút Bản đồ: Xem sơ đồ kệ & Mở trên Google Maps
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.teal.shade800,
+                            side: BorderSide(color: Colors.teal.shade400),
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            backgroundColor: Colors.white,
+                          ),
+                          icon: const Icon(Icons.map_rounded, size: 16),
+                          label: const Text('Xem Sơ đồ & GPS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                          onPressed: _previewLocationMap,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1A73E8),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                          label: const Text('Mở Google Maps', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
+                          onPressed: _openGoogleMapsTest,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
