@@ -521,22 +521,17 @@ class _StorageLocationsPageState extends State<StorageLocationsPage> {
                                   icon: const Icon(Icons.map_rounded, size: 16),
                                   label: const Text('Xem Bản Đồ Tòa Nhà', style: TextStyle(fontSize: 12)),
                                   onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (_) => AlertDialog(
-                                        title: Text(l.name),
-                                        content: InteractiveLocationMap(
-                                          location: PhysicalLocation(
-                                            locationName: l.name,
-                                            campusName: l.building,
-                                            shelfNumber: '${l.cabinet} - ${l.shelf}',
-                                            latitude: l.latitude,
-                                            longitude: l.longitude,
-                                            floor: l.floor,
-                                          ),
-                                          documentTitle: '${docsInLoc.length} tài liệu cất giữ tại đây',
-                                        ),
+                                    InteractiveLocationMap.showModal(
+                                      context,
+                                      location: PhysicalLocation(
+                                        locationName: l.name,
+                                        campusName: '${l.building} - ${l.room}',
+                                        shelfNumber: '${l.cabinet} - ${l.shelf}',
+                                        latitude: l.latitude,
+                                        longitude: l.longitude,
+                                        floor: l.floor,
                                       ),
+                                      documentTitle: '${docsInLoc.length} tài liệu cất giữ tại đây',
                                     );
                                   },
                                 ),

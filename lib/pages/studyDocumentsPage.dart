@@ -1142,20 +1142,17 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                                           label: const Text('Xem bản đồ', style: TextStyle(fontSize: 12)),
                                           onPressed: () {
                                             Navigator.pop(ctx);
-                                            showDialog(
-                                              context: context,
-                                              builder: (_) => AlertDialog(
-                                                title: Text(locName),
-                                                content: InteractiveLocationMap(
-                                                  location: PhysicalLocation(
-                                                    locationName: locName,
-                                                    shelfNumber: firstDoc.shelfLocation,
-                                                    latitude: firstDoc.latitude != 0.0 ? firstDoc.latitude : 10.8700,
-                                                    longitude: firstDoc.longitude != 0.0 ? firstDoc.longitude : 106.8030,
-                                                  ),
-                                                  documentTitle: '${docs.length} tài liệu lưu tại $locName',
-                                                ),
+                                            InteractiveLocationMap.showModal(
+                                              context,
+                                              location: PhysicalLocation(
+                                                locationName: locName,
+                                                campusName: firstDoc.physicalLocation,
+                                                shelfNumber: firstDoc.shelfLocation,
+                                                latitude: firstDoc.latitude != 0.0 ? firstDoc.latitude : 21.0010,
+                                                longitude: firstDoc.longitude != 0.0 ? firstDoc.longitude : 105.8424,
+                                                floor: 'Tầng 1',
                                               ),
+                                              documentTitle: '${docs.length} tài liệu lưu tại $locName',
                                             );
                                           },
                                         ),

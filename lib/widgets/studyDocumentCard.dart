@@ -596,32 +596,10 @@ class StudyDocumentCard extends StatelessWidget {
       longitude: document.longitude != 0.0 ? document.longitude : 106.8030,
     );
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.all(16),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              InteractiveLocationMap(
-                location: loc,
-                documentTitle: document.title,
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Đóng'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    InteractiveLocationMap.showModal(
+      context,
+      location: loc,
+      documentTitle: document.title,
     );
   }
 
