@@ -9,13 +9,13 @@
 
 ## 👥 DANH SÁCH NHÓM SINH VIÊN THỰC HIỆN
 
-| STT | Họ và Tên | Mã Sinh Viên | Vai Trò | Nhiệm Vụ Phụ Trách |
-| :---: | :--- | :---: | :--- | :--- |
-| 1 | **Phạm Văn Hưng** | 2351170598 | **Trưởng nhóm / Cloud Architect** | Thiết kế Kiến trúc Hybrid Cloud, Supabase Schema, RLS & Firebase Auth |
-| 2 | **Trịnh Trung Kiên** | 2251172396 | **Frontend Developer** | Phát triển Giao diện Flutter, Luồng đăng nhập Google và Quản lý Tài liệu |
-| 3 | **Đỗ Việt Tiến** | 2251243452 | **Frontend Developer** | Triển khai Modal Chia sẻ tài liệu (Permissions) & Bộ lọc Tìm kiếm |
-| 4 | **Cao Đức Đạo** | 2351170581 | **Backend & Database Engineer** | Thiết kế Ràng buộc CSDL Supabase, Viết RLS Policies & Tích hợp Storage API |
-| 5 | **Trương Tuấn Hải** | 2351170590 | **QA / Test Engineer** | Xây dựng Bộ kiểm thử tự động Đa tài khoản (Checklist 6) & Viết Báo cáo |
+| STT | Họ và Tên | Mã Sinh Viên |
+| :---: | :--- | :---: |
+| 1 | Phạm Văn Hưng | 2351170598 |
+| 2 | Trịnh Trung Kiên | 2251172396 |
+| 3 | Đỗ Việt Tiến | 2251243452 |
+| 4 | Cao Đức Đạo | 2351170581 |
+| 5 | Trương Tuấn Hải | 2351170590 |
 
 ---
 
