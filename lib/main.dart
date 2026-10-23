@@ -1,3 +1,4 @@
+import 'pages/exploreBorrowPage.dart';
 import 'pages/tagManagementPage.dart';
 import 'pages/storageLocationsPage.dart';
 import 'services/supabase_service.dart';
@@ -82,7 +83,8 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     final pages = [
       HomePage(onNavigate: _onNavigate),
       const StudyDocumentsPage(),
-      const BorrowManagementPage(),
+      ExploreBorrowPage(onNavigate: _onNavigate),
+      BorrowManagementPage(onNavigate: _onNavigate),
       const TagManagementPage(),
       const StorageLocationsPage(),
     ];
@@ -118,7 +120,10 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
           destinations: const [
             NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Trang chủ'),
             NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Tài liệu'),
-            NavigationDestination(icon: Icon(Icons.swap_horiz_rounded), label: 'Mượn/Trả'),
+            NavigationDestination(icon: Icon(Icons.explore_rounded), label: 'Nơi mượn'),
+            NavigationDestination(icon: Icon(Icons.bookmark_added_rounded), label: 'Đang mượn'),
+            NavigationDestination(icon: Icon(Icons.label_rounded), label: 'Thẻ Tag'),
+            NavigationDestination(icon: Icon(Icons.warehouse_rounded), label: 'Kho TL'),
           ],
         ),
       );

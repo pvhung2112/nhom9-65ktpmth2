@@ -50,12 +50,15 @@ class BorrowRequest {
   final DateTime? returnDate;
   final BorrowStatus status;
   final String notes;
+  final String physicalLocation;
+  final String shelfLocation;
+  final String fileUrl;
 
   BorrowRequest({
     required this.id,
     required this.documentId,
     required this.documentTitle,
-    this.courseCode = 'SE301',
+    this.courseCode = '',
     required this.ownerId,
     required this.ownerName,
     required this.ownerEmail,
@@ -67,6 +70,9 @@ class BorrowRequest {
     this.returnDate,
     this.status = BorrowStatus.pending,
     this.notes = '',
+    this.physicalLocation = '',
+    this.shelfLocation = '',
+    this.fileUrl = '',
   })  : requestDate = requestDate ?? DateTime.now(),
         dueDate = dueDate ?? DateTime.now().add(const Duration(days: 7));
 
@@ -90,6 +96,9 @@ class BorrowRequest {
     DateTime? returnDate,
     BorrowStatus? status,
     String? notes,
+    String? physicalLocation,
+    String? shelfLocation,
+    String? fileUrl,
   }) {
     return BorrowRequest(
       id: id ?? this.id,
@@ -107,6 +116,9 @@ class BorrowRequest {
       returnDate: returnDate ?? this.returnDate,
       status: status ?? this.status,
       notes: notes ?? this.notes,
+      physicalLocation: physicalLocation ?? this.physicalLocation,
+      shelfLocation: shelfLocation ?? this.shelfLocation,
+      fileUrl: fileUrl ?? this.fileUrl,
     );
   }
 
@@ -126,13 +138,16 @@ class BorrowRequest {
     'return_date': returnDate?.toIso8601String(),
     'status': status.name,
     'notes': notes,
+    'physical_location': physicalLocation,
+    'shelf_location': shelfLocation,
+    'file_url': fileUrl,
   };
 
   factory BorrowRequest.fromMap(Map<String, dynamic> map) => BorrowRequest(
     id: map['id']?.toString() ?? '',
     documentId: map['document_id']?.toString() ?? '',
     documentTitle: map['document_title']?.toString() ?? 'Tài liệu không tên',
-    courseCode: map['course_code']?.toString() ?? 'SE301',
+    courseCode: map['course_code']?.toString() ?? '',
     ownerId: map['owner_id']?.toString() ?? '',
     ownerName: map['owner_name']?.toString() ?? '',
     ownerEmail: map['owner_email']?.toString() ?? '',
@@ -144,6 +159,9 @@ class BorrowRequest {
     returnDate: map['return_date'] != null ? DateTime.tryParse(map['return_date'].toString()) : null,
     status: BorrowStatus.fromString(map['status']?.toString()),
     notes: map['notes']?.toString() ?? '',
+    physicalLocation: map['physical_location']?.toString() ?? '',
+    shelfLocation: map['shelf_location']?.toString() ?? '',
+    fileUrl: map['file_url']?.toString() ?? '',
   );
 
   String toJson() => jsonEncode(toMap());

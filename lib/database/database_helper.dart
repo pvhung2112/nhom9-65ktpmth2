@@ -304,6 +304,7 @@ class AppDatabase {
 
   // --- Storage Location Operations ---
   List<StorageLocationItem> getAllStorageLocations() => _storageLocations.values.toList();
+  StorageLocationItem? getStorageLocation(String id) => _storageLocations[id];
 
   Future<void> replaceStorageLocations(List<StorageLocationItem> list) async {
     _storageLocations.clear();

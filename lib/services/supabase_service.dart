@@ -1,3 +1,5 @@
+import '../database/web_storage.dart';
+import '../database/database_helper.dart';
 import '../models/tag_model.dart';
 import '../models/storage_location_model.dart';
 import '../struct/studyDocument.dart';
@@ -53,10 +55,31 @@ class SupabaseService {
     }
   }
 
+  void _saveBorrowRequestsCache() {
+    try {
+      final list = _borrowRequestsTable.values.map((r) => r.toMap()).toList();
+      saveLocalCache('cached_borrow_requests', jsonEncode(list));
+    } catch (_) {}
+  }
+
+  void _loadBorrowRequestsFromCache() {
+    try {
+      final cached = getLocalCache('cached_borrow_requests');
+      if (cached != null && cached.isNotEmpty) {
+        final list = jsonDecode(cached) as List<dynamic>;
+        for (var item in list) {
+          final req = BorrowRequest.fromMap(Map<String, dynamic>.from(item));
+          _borrowRequestsTable[req.id] = req;
+        }
+      }
+    } catch (_) {}
+  }
+
   void _initDefaultData() {
     for (var u in FirebaseAuthService.predefinedAccounts) {
       _usersTable[u.id] = u;
     }
+    _loadBorrowRequestsFromCache();
   }
 
   /// Cấu hình thông số kết nối Supabase Cloud Online từ Dashboard Supabase
@@ -926,9 +949,114 @@ class SupabaseService {
     }
   }
 
+  /// Tải toàn bộ tài liệu học tập của TẤT CẢ người dùng trong cộng đồng để hiển thị trong Nơi mượn tài liệu
+  Future<List<StudyDocument>> fetchAllCommunityStudyDocuments() async {
+    final List<StudyDocument> list = [];
+    if (isOnlineMode) {
+      try {
+        final docUri = Uri.parse('$_supabaseUrl/rest/v1/documents?select=*&order=created_at.desc');
+        final docRes = await http.get(
+          docUri,
+          headers: {
+            'apikey': _supabaseAnonKey!,
+            'Authorization': 'Bearer $_supabaseAnonKey',
+          },
+        ).timeout(const Duration(seconds: 6));
+
+        if (docRes.statusCode >= 200 && docRes.statusCode < 300) {
+          final List<dynamic> rawDocs = jsonDecode(docRes.body);
+          for (var item in rawDocs) {
+            final map = Map<String, dynamic>.from(item);
+            final docId = map['id']?.toString() ?? '';
+            final ownerId = map['owner_id']?.toString() ?? '';
+            final ownerEmail = map['owner_email']?.toString() ?? '';
+            final ownerName = map['owner_name']?.toString() ?? ownerEmail;
+            final rawDesc = map['description']?.toString() ?? '';
+
+            String cleanDesc = rawDesc;
+            List<String> parsedTags = [];
+            String physicalLoc = map['physical_location']?.toString() ?? 'Thư viện Trung tâm - Tòa H1';
+            String shelfLoc = map['shelf_location']?.toString() ?? 'Kệ A3 - Ngăn 02';
+            double lat = (map['latitude'] as num?)?.toDouble() ?? 21.00699;
+            double lon = (map['longitude'] as num?)?.toDouble() ?? 105.8251;
+            bool pinned = map['is_pinned'] == true || map['is_pinned']?.toString() == 'true';
+            String borrowStat = map['borrow_status']?.toString() ?? 'available';
+
+            if (rawDesc.contains('<!--META:') && rawDesc.contains('-->')) {
+              final start = rawDesc.indexOf('<!--META:') + 9;
+              final end = rawDesc.indexOf('-->', start);
+              if (end > start) {
+                final metaStr = rawDesc.substring(start, end);
+                cleanDesc = rawDesc.substring(0, rawDesc.indexOf('<!--META:')).trim();
+                try {
+                  final metaMap = jsonDecode(metaStr) as Map<String, dynamic>;
+                  if (metaMap['tags'] is List) {
+                    parsedTags = (metaMap['tags'] as List).map((e) => e.toString()).toList();
+                  }
+                  if (metaMap['loc'] != null && metaMap['loc'].toString().isNotEmpty) {
+                    physicalLoc = metaMap['loc'].toString();
+                  }
+                  if (metaMap['shelf'] != null) shelfLoc = metaMap['shelf'].toString();
+                  if (metaMap['lat'] != null) lat = (metaMap['lat'] as num).toDouble();
+                  if (metaMap['lng'] != null) lon = (metaMap['lng'] as num).toDouble();
+                  if (metaMap['pinned'] != null) pinned = metaMap['pinned'] == true;
+                  if (metaMap['borrow'] != null) borrowStat = metaMap['borrow'].toString();
+                } catch (_) {}
+              }
+            }
+
+            // Đồng bộ vị trí kho chuẩn nếu có id
+            final storageLocId = map['storage_location_id']?.toString();
+            if (storageLocId != null && storageLocId.isNotEmpty) {
+              final loc = AppDatabase().getStorageLocation(storageLocId);
+              if (loc != null) {
+                if (physicalLoc == 'Thư viện Trung tâm - Tòa H1' || physicalLoc.isEmpty) {
+                  physicalLoc = loc.name;
+                  shelfLoc = loc.shelfDetail;
+                }
+                if (lat == 10.8700 || lat == 0.0) {
+                  lat = loc.latitude;
+                  lon = loc.longitude;
+                }
+              }
+            }
+
+            list.add(StudyDocument(
+              id: docId,
+              title: map['title']?.toString() ?? 'Tài liệu không tên',
+              description: cleanDesc,
+              courseId: '',
+              type: DocumentType.lecture,
+              fileUrl: map['file_url']?.toString() ?? '',
+              tags: parsedTags,
+              physicalLocation: physicalLoc,
+              shelfLocation: shelfLoc,
+              latitude: lat,
+              longitude: lon,
+              isPinned: pinned,
+              borrowStatus: borrowStat,
+              ownerId: ownerId,
+              ownerEmail: ownerEmail,
+              ownerName: ownerName,
+              isSynced: true,
+            ));
+          }
+        }
+      } catch (e) {
+        debugPrint('Lỗi fetchAllCommunityStudyDocuments: $e');
+      }
+    }
+
+    if (list.isEmpty) {
+      list.addAll(AppDatabase().getAllDocuments());
+    }
+    return list;
+  }
+
   // ================= TH2: QUẢN LÝ MƯỢN / TRẢ TÀI LIỆU =================
   Future<bool> createBorrowRequest(BorrowRequest request) async {
     _borrowRequestsTable[request.id] = request;
+    _saveBorrowRequestsCache();
 
     if (isOnlineMode) {
       try {
@@ -952,6 +1080,7 @@ class SupabaseService {
   }
 
   Future<List<BorrowRequest>> fetchBorrowRequests({String? borrowerEmail, String? ownerEmail}) async {
+    _loadBorrowRequestsFromCache();
     final List<BorrowRequest> results = [];
 
     if (isOnlineMode) {
@@ -999,6 +1128,7 @@ class SupabaseService {
         status: newStatus,
         returnDate: newStatus == BorrowStatus.returned ? DateTime.now() : null,
       );
+      _saveBorrowRequestsCache();
     }
 
     if (isOnlineMode) {
