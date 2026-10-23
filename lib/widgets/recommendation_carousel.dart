@@ -203,8 +203,8 @@ class RecommendationCarousel extends StatelessWidget {
         final width = constraints.maxWidth;
         final isMobile = width < 600;
         final double horizontalPadding = isMobile ? 16.0 : 24.0;
-        final double cardWidth = isMobile ? 268.0 : 300.0;
-        final double carouselHeight = isMobile ? 168.0 : 176.0;
+        final double cardWidth = isMobile ? 275.0 : 310.0;
+        final double carouselHeight = isMobile ? 174.0 : 180.0;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,18 +329,20 @@ class RecommendationCarousel extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(4),
+                          if (doc.courseId.trim().isNotEmpty) ...[
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                doc.courseId.trim().toUpperCase(),
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue),
+                              ),
                             ),
-                            child: Text(
-                              doc.courseId.toUpperCase(),
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue),
-                            ),
-                          ),
+                          ],
                         ],
                       ),
 
