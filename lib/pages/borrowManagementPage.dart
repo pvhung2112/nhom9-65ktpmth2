@@ -1,3 +1,4 @@
+import '../models/supabase_user.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/borrow_request.dart';
@@ -58,6 +59,33 @@ class _BorrowManagementPageState extends State<BorrowManagementPage> with Single
   Future<void> _updateStatus(BorrowRequest req, BorrowStatus newStatus) async {
     final ok = await _supabase.updateBorrowRequestStatus(req.id, newStatus);
     if (ok) {
+      // LUỒNG NGHIỆP VỤ TỰ ĐỘNG KẾT NỐI:
+      // Khi chủ sở hữu Chấp nhận (Accept) cho mượn tài liệu -> Tự động cấp quyền truy cập RLS (document_permissions)
+      if (newStatus == BorrowStatus.approved) {
+        try {
+          final targetUser = SupabaseUser(
+            id: req.borrowerId,
+            email: req.borrowerEmail,
+            displayName: req.borrowerName,
+          );
+          final currentUser = _auth.currentUser;
+          if (currentUser != null) {
+            await _supabase.shareDocumentOnline(
+              documentId: req.documentId,
+              targetUser: targetUser,
+              permissions: ['view'],
+              currentUser: currentUser,
+            );
+            debugPrint('✅ Đã tự động cấp quyền truy cập RLS [view] cho ${req.borrowerEmail} vào bảng document_permissions');
+          }
+        } catch (e) {
+          debugPrint('Lỗi tự động cấp quyền RLS: $e');
+        }
+      } else if (newStatus == BorrowStatus.rejected) {
+        try {
+          await _supabase.revokePermissionOnline(req.documentId, req.borrowerId);
+        } catch (_) {}
+      }
       final msg = newStatus == BorrowStatus.approved
           ? 'Đã CHẤP NHẬN (Accept) cho "${req.borrowerName}" mượn tài liệu "${req.documentTitle}"!'
           : (newStatus == BorrowStatus.rejected
