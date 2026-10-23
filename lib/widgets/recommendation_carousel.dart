@@ -198,88 +198,103 @@ class RecommendationCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     if (recommendations.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF8E24AA), Color(0xFFD81B60)]),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Gợi ý Thông minh cho Bạn (Recommendation AI)',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isMobile = width < 600;
+        final double horizontalPadding = isMobile ? 16.0 : 24.0;
+        final double cardWidth = isMobile ? 268.0 : 300.0;
+        final double carouselHeight = isMobile ? 168.0 : 176.0;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [Color(0xFF8E24AA), Color(0xFFD81B60)]),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    Text(
-                      'Thuật toán Content-Based & Jaccard tự động học sở thích học tập',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Gợi ý Thông minh cho Bạn',
+                          style: TextStyle(fontSize: isMobile ? 14 : 15, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Thuật toán Content-Based & Jaccard tự động học sở thích',
+                          style: TextStyle(fontSize: isMobile ? 10 : 11, color: Colors.grey.shade600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  if (isMobile)
+                    IconButton(
+                      tooltip: 'Tùy chỉnh sở thích',
+                      icon: const Icon(Icons.tune_rounded, color: Color(0xFF8E24AA), size: 20),
+                      onPressed: () => _showPreferencesDialog(context),
+                    )
+                  else
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF8E24AA),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      ),
+                      icon: const Icon(Icons.tune_rounded, size: 16),
+                      label: const Text('Tùy chỉnh sở thích', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      onPressed: () => _showPreferencesDialog(context),
+                    ),
+                ],
               ),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF8E24AA),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                ),
-                icon: const Icon(Icons.tune_rounded, size: 16),
-                label: const Text('Tùy chỉnh sở thích', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                onPressed: () => _showPreferencesDialog(context),
-              ),
-            ],
-          ),
-        ),
+            ),
 
-        // Carousel List
-        SizedBox(
-          height: 175,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-            scrollDirection: Axis.horizontal,
-            itemCount: recommendations.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 14),
-            itemBuilder: (context, index) {
-              final item = recommendations[index];
-              final doc = item.document;
+            // Carousel List
+            SizedBox(
+              height: carouselHeight,
+              child: ListView.separated(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 6),
+                scrollDirection: Axis.horizontal,
+                itemCount: recommendations.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final item = recommendations[index];
+                  final doc = item.document;
 
-              // Color based on score
-              Color scoreColor = Colors.purple;
-              Color scoreBg = Colors.purple.shade50;
-              if (item.score >= 70) {
-                scoreColor = Colors.teal.shade800;
-                scoreBg = Colors.teal.shade50;
-              } else if (item.score >= 50) {
-                scoreColor = const Color(0xFF8E24AA);
-                scoreBg = Colors.purple.shade50;
-              } else {
-                scoreColor = Colors.blue.shade800;
-                scoreBg = Colors.blue.shade50;
-              }
+                  // Color based on score
+                  Color scoreColor = Colors.purple;
+                  Color scoreBg = Colors.purple.shade50;
+                  if (item.score >= 70) {
+                    scoreColor = Colors.teal.shade800;
+                    scoreBg = Colors.teal.shade50;
+                  } else if (item.score >= 50) {
+                    scoreColor = const Color(0xFF8E24AA);
+                    scoreBg = Colors.purple.shade50;
+                  } else {
+                    scoreColor = Colors.blue.shade800;
+                    scoreBg = Colors.blue.shade50;
+                  }
 
-              return InkWell(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => AddEditDocumentPage(initialDocument: doc)),
-                  );
-                },
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: 300,
+                  return InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => AddEditDocumentPage(initialDocument: doc)),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: cardWidth,
                   padding: const EdgeInsets.all(13),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -395,6 +410,8 @@ class RecommendationCarousel extends StatelessWidget {
           ),
         ),
       ],
+    );
+      },
     );
   }
 }
