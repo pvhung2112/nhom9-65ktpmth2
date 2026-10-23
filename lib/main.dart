@@ -5,9 +5,6 @@ import 'pages/authPage.dart';
 import 'widgets/navigationSidebar.dart';
 import 'pages/homePage.dart';
 import 'pages/studyDocumentsPage.dart';
-import 'pages/studyCoursesPage.dart';
-import 'pages/studyGoalsPage.dart';
-import 'pages/studyDocumentSearchPage.dart';
 import 'pages/borrowManagementPage.dart';
 
 void main() {
@@ -83,9 +80,6 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     final pages = [
       HomePage(onNavigate: _onNavigate),
       const StudyDocumentsPage(),
-      const CoursesPage(),
-      const StudyGoalsPage(),
-      const DocumentSearchPage(),
       const BorrowManagementPage(),
     ];
 
@@ -120,9 +114,6 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
           destinations: const [
             NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Trang chủ'),
             NavigationDestination(icon: Icon(Icons.menu_book_rounded), label: 'Tài liệu'),
-            NavigationDestination(icon: Icon(Icons.school_rounded), label: 'Môn học'),
-            NavigationDestination(icon: Icon(Icons.flag_rounded), label: 'Mục tiêu'),
-            NavigationDestination(icon: Icon(Icons.search_rounded), label: 'Tìm kiếm'),
             NavigationDestination(icon: Icon(Icons.swap_horiz_rounded), label: 'Mượn/Trả'),
           ],
         ),

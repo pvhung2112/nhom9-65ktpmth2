@@ -3,7 +3,6 @@ import '../struct/studyDocument.dart';
 import '../database/study_document_dao.dart';
 import '../widgets/studyDocumentCard.dart';
 import 'addEditStudyDocumentPage.dart';
-import 'studyDocumentSearchPage.dart';
 import '../services/recommendation_service.dart';
 import '../widgets/recommendation_carousel.dart';
 import '../services/firebase_auth_service.dart';
@@ -71,16 +70,6 @@ class HomePage extends StatelessWidget {
                         ],
                       ),
                       const Spacer(),
-                      IconButton.filledTonal(
-                        icon: const Icon(Icons.search_rounded),
-                        tooltip: 'Tìm kiếm',
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const DocumentSearchPage()),
-                          );
-                        },
-                      ),
                     ],
                   ),
                 ),

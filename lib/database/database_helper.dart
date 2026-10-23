@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import '../struct/studyDocument.dart';
 import '../struct/studyCourse.dart';
-import '../struct/studyGoal.dart';
 
 class AppDatabase {
   static final AppDatabase _instance = AppDatabase._internal();
@@ -14,15 +13,12 @@ class AppDatabase {
 
   final Map<String, StudyDocument> _documents = {};
   final Map<String, Course> _courses = {};
-  final Map<String, StudyGoal> _goals = {};
 
   final _docsStreamController = StreamController<List<StudyDocument>>.broadcast();
   final _coursesStreamController = StreamController<List<Course>>.broadcast();
-  final _goalsStreamController = StreamController<List<StudyGoal>>.broadcast();
 
   Stream<List<StudyDocument>> watchAllDocuments() => _docsStreamController.stream;
   Stream<List<Course>> watchAllCourses() => _coursesStreamController.stream;
-  Stream<List<StudyGoal>> watchAllGoals() => _goalsStreamController.stream;
 
   void _notifyDocuments() {
     _docsStreamController.add(getAllDocuments());
@@ -32,9 +28,6 @@ class AppDatabase {
     _coursesStreamController.add(getAllCourses());
   }
 
-  void _notifyGoals() {
-    _goalsStreamController.add(getAllGoals());
-  }
 
   void _seedDefaultData() {
     if (_courses.isEmpty) {
@@ -49,17 +42,6 @@ class AppDatabase {
 
     // Không dùng dữ liệu tài liệu tĩnh: Dữ liệu được đồng bộ trực tiếp từ Google Firebase Cloud Firestore!
 
-    if (_goals.isEmpty) {
-      final g1 = StudyGoal(
-        id: 'g1',
-        title: 'Hoàn thành bài tập lớn Kiến trúc Cashew',
-        targetCount: 4,
-        completedCount: 2,
-        deadline: DateTime.now().add(const Duration(days: 7)),
-        courseId: 'c1',
-      );
-      _goals[g1.id] = g1;
-    }
   }
 
   // --- Document Operations ---
@@ -117,39 +99,14 @@ class AppDatabase {
   List<Course> getAllCourses() => _courses.values.toList();
 
   // --- Goal Operations ---
-  Future<void> insertGoal(StudyGoal goal) async {
-    _goals[goal.id] = goal;
-    _notifyGoals();
-  }
 
-  Future<void> updateGoal(StudyGoal goal) async {
-    _goals[goal.id] = goal;
-    _notifyGoals();
-  }
 
-  Future<void> deleteGoal(String id) async {
-    _goals.remove(id);
-    _notifyGoals();
-  }
 
-  List<StudyGoal> getAllGoals() => _goals.values.toList();
-
-  // --- Backup & Restore ---
-  String exportBackupJson() {
-    return jsonEncode({
-      'version': 1,
-      'exported_at': DateTime.now().toIso8601String(),
-      'courses': _courses.values.map((c) => c.toMap()).toList(),
-      'documents': _documents.values.map((d) => d.toMap()).toList(),
-      'goals': _goals.values.map((g) => g.toMap()).toList(),
-    });
-  }
 
   Future<void> restoreBackupJson(String jsonString) async {
     final data = jsonDecode(jsonString) as Map<String, dynamic>;
     _courses.clear();
     _documents.clear();
-    _goals.clear();
 
     if (data['courses'] != null) {
       for (var c in data['courses']) {
@@ -163,14 +120,7 @@ class AppDatabase {
         _documents[doc.id] = doc;
       }
     }
-    if (data['goals'] != null) {
-      for (var g in data['goals']) {
-        final goal = StudyGoal.fromMap(g);
-        _goals[goal.id] = goal;
-      }
-    }
     _notifyCourses();
     _notifyDocuments();
-    _notifyGoals();
   }
 }

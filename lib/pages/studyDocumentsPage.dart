@@ -18,9 +18,7 @@ import '../widgets/studyDocumentCard.dart';
 
 import 'addEditStudyDocumentPage.dart';
 
-import 'studyDocumentSearchPage.dart';
 
-import 'studyCoursesPage.dart';
 
 
 
@@ -230,28 +228,6 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
 
                   IconButton.filledTonal(
 
-                    icon: const Icon(Icons.school_rounded),
-
-                    tooltip: 'Quản lý môn học',
-
-                    onPressed: () {
-
-                      Navigator.push(
-
-                        context,
-
-                        MaterialPageRoute(builder: (_) => const CoursesPage()),
-
-                      );
-
-                    },
-
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  IconButton.filledTonal(
-
                     icon: _isLoadingFromCloud
 
                         ? const SizedBox(
@@ -269,28 +245,6 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                     tooltip: 'Làm mới từ Firebase Cloud',
 
                     onPressed: _isLoadingFromCloud ? null : _loadFromCloud,
-
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  IconButton.filledTonal(
-
-                    icon: const Icon(Icons.search_rounded),
-
-                    tooltip: 'Tìm kiếm',
-
-                    onPressed: () {
-
-                      Navigator.push(
-
-                        context,
-
-                        MaterialPageRoute(builder: (_) => const DocumentSearchPage()),
-
-                      );
-
-                    },
 
                   ),
 
