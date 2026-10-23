@@ -225,30 +225,35 @@ class NavigationSidebar extends StatelessWidget {
                                       );
                                     }
 
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ...onlineUsers.map((acc) {
-                                          final isCurrent = auth.currentUser?.email.toLowerCase() == acc.email.toLowerCase();
-                                          return ListTile(
-                                            dense: true,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                            selected: isCurrent,
-                                            selectedTileColor: const Color(0xFFF7D8DF),
-                                            leading: CircleAvatar(
-                                              radius: 14,
-                                              backgroundColor: isCurrent ? const Color(0xFFD81B60) : Colors.grey.shade400,
-                                              child: Text(acc.displayName.isNotEmpty ? acc.displayName[0] : 'U', style: const TextStyle(color: Colors.white, fontSize: 11)),
-                                            ),
-                                            title: Text(acc.displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                            subtitle: Text(acc.email, style: const TextStyle(fontSize: 11)),
-                                            trailing: isCurrent ? const Icon(Icons.check_circle_rounded, color: Color(0xFFD81B60), size: 18) : null,
-                                            onTap: () async {
-                                              Navigator.pop(ctx);
-                                              await auth.signInWithGoogle(user: acc);
-                                            },
-                                          );
-                                        }),
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          ...onlineUsers.map((acc) {
+                                            final isCurrent = auth.currentUser?.email.toLowerCase() == acc.email.toLowerCase();
+                                            return Material(
+                                              color: Colors.transparent,
+                                              child: ListTile(
+                                                dense: true,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                                selected: isCurrent,
+                                                selectedTileColor: const Color(0xFFF7D8DF),
+                                                leading: CircleAvatar(
+                                                  radius: 14,
+                                                  backgroundColor: isCurrent ? const Color(0xFFD81B60) : Colors.grey.shade400,
+                                                  child: Text(acc.displayName.isNotEmpty ? acc.displayName[0] : 'U', style: const TextStyle(color: Colors.white, fontSize: 11)),
+                                                ),
+                                                title: Text(acc.displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                                subtitle: Text(acc.email, style: const TextStyle(fontSize: 11)),
+                                                trailing: isCurrent ? const Icon(Icons.check_circle_rounded, color: Color(0xFFD81B60), size: 18) : null,
+                                                onTap: () async {
+                                                  Navigator.pop(ctx);
+                                                  await auth.signInWithGoogle(user: acc);
+                                                },
+                                              ),
+                                            );
+                                          }),
                                         const Divider(height: 20),
                                         ElevatedButton.icon(
                                           style: ElevatedButton.styleFrom(
@@ -265,7 +270,8 @@ class NavigationSidebar extends StatelessWidget {
                                           },
                                         ),
                                       ],
-                                    );
+                                    ),
+                                  );
                                   },
                                 ),
                               ),

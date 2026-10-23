@@ -1102,14 +1102,17 @@ class _StudyDocumentsPageState extends State<StudyDocumentsPage> {
                               ),
                               children: [
                                 const Divider(height: 1),
-                                ...docs.map((d) => ListTile(
-                                  dense: true,
-                                  leading: const Icon(Icons.menu_book_rounded, size: 18, color: Color(0xFFD81B60)),
-                                  title: Text(d.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                  subtitle: Text('Vị trí: ${d.shelfLocation}', style: const TextStyle(fontSize: 11, color: Colors.brown)),
-                                  trailing: d.isPinned
-                                      ? const Icon(Icons.push_pin_rounded, size: 14, color: Colors.amber)
-                                      : null,
+                                ...docs.map((d) => Material(
+                                  color: Colors.transparent,
+                                  child: ListTile(
+                                    dense: true,
+                                    leading: const Icon(Icons.menu_book_rounded, size: 18, color: Color(0xFFD81B60)),
+                                    title: Text(d.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    subtitle: Text('Vị trí: ${d.shelfLocation}', style: const TextStyle(fontSize: 11, color: Colors.brown)),
+                                    trailing: d.isPinned
+                                        ? const Icon(Icons.push_pin_rounded, size: 14, color: Colors.amber)
+                                        : null,
+                                  ),
                                 )),
                                 Padding(
                                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),

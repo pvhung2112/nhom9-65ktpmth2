@@ -1269,24 +1269,30 @@ class StudyDocumentCard extends StatelessWidget {
                             border: Border.all(color: Colors.grey.shade300),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            itemCount: searchResults.length,
-                            separatorBuilder: (_, _) => const Divider(height: 1),
-                            itemBuilder: (context, i) {
-                              final u = searchResults[i];
-                              final isSelected = selectedTargetUser?.email == u.email;
-                              return ListTile(
-                                dense: true,
-                                selected: isSelected,
-                                selectedTileColor: Colors.blue.shade50,
-                                leading: CircleAvatar(radius: 12, child: Text(u.displayName.isNotEmpty ? u.displayName[0] : 'U', style: const TextStyle(fontSize: 11))),
-                                title: Text(u.displayName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                subtitle: Text(u.email, style: const TextStyle(fontSize: 11)),
-                                trailing: isSelected ? const Icon(Icons.check_circle, color: Color(0xFF1976D2), size: 18) : null,
-                                onTap: () => setDialogState(() => selectedTargetUser = u),
-                              );
-                            },
+                          child: Material(
+                            color: Colors.transparent,
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: searchResults.length,
+                              separatorBuilder: (_, _) => const Divider(height: 1),
+                              itemBuilder: (context, i) {
+                                final u = searchResults[i];
+                                final isSelected = selectedTargetUser?.email == u.email;
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: ListTile(
+                                    dense: true,
+                                    selected: isSelected,
+                                    selectedTileColor: Colors.blue.shade50,
+                                    leading: CircleAvatar(radius: 12, child: Text(u.displayName.isNotEmpty ? u.displayName[0] : 'U', style: const TextStyle(fontSize: 11))),
+                                    title: Text(u.displayName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    subtitle: Text(u.email, style: const TextStyle(fontSize: 11)),
+                                    trailing: isSelected ? const Icon(Icons.check_circle, color: Color(0xFF1976D2), size: 18) : null,
+                                    onTap: () => setDialogState(() => selectedTargetUser = u),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ],
@@ -1349,12 +1355,14 @@ class StudyDocumentCard extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                       const SizedBox(height: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
+                      Material(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade300),
+                          side: BorderSide(color: Colors.grey.shade300),
                         ),
+                        clipBehavior: Clip.antiAlias,
                         child: Column(
                           children: [
                             // 1. Quyền Xem: Luôn luôn có (mặc định đã tick, không cho bỏ chọn)

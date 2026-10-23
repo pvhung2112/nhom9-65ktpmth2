@@ -1292,29 +1292,32 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.grey.shade300),
                             ),
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              itemCount: searchResults.length,
-                              separatorBuilder: (_, _) => const Divider(height: 1),
-                              itemBuilder: (ctx, i) {
-                                final r = searchResults[i];
-                                return ListTile(
-                                  dense: true,
-                                  leading: const Icon(Icons.pin_drop_rounded, size: 18, color: Colors.redAccent),
-                                  title: Text(r.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                  subtitle: Text(r.displayName, style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  onTap: () {
-                                    setDlgState(() {
-                                      nameCtrl.text = r.name;
-                                      bldCtrl.text = r.building;
-                                      latCtrl.text = r.latitude.toStringAsFixed(5);
-                                      lngCtrl.text = r.longitude.toStringAsFixed(5);
-                                      foundAddress = r.displayName;
-                                      searchResults = [];
-                                    });
-                                  },
-                                );
-                              },
+                            child: Material(
+                              color: Colors.transparent,
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: searchResults.length,
+                                separatorBuilder: (_, _) => const Divider(height: 1),
+                                itemBuilder: (ctx, i) {
+                                  final r = searchResults[i];
+                                  return ListTile(
+                                    dense: true,
+                                    leading: const Icon(Icons.pin_drop_rounded, size: 18, color: Colors.redAccent),
+                                    title: Text(r.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    subtitle: Text(r.displayName, style: const TextStyle(fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    onTap: () {
+                                      setDlgState(() {
+                                        nameCtrl.text = r.name;
+                                        bldCtrl.text = r.building;
+                                        latCtrl.text = r.latitude.toStringAsFixed(5);
+                                        lngCtrl.text = r.longitude.toStringAsFixed(5);
+                                        foundAddress = r.displayName;
+                                        searchResults = [];
+                                      });
+                                    },
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ],
