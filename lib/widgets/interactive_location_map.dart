@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/physical_location.dart';
+import '../database/web_storage.dart';
 
 /// Widget Bản đồ tương tác vị trí tài liệu (Campus & Library Floor Map Viewer)
-/// Hỗ trợ hiển thị tọa độ GPS, sơ đồ kệ sách và liên kết Google Maps
+/// Hỗ trợ hiển thị tọa độ GPS, bản đồ OpenStreetMap thực tế, sơ đồ kệ sách và liên kết Google Maps
 class InteractiveLocationMap extends StatelessWidget {
   final PhysicalLocation location;
   final String documentTitle;
@@ -15,6 +16,7 @@ class InteractiveLocationMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final staticMapUrl = 'https://staticmap.openstreetmap.de/staticmap.php?center=${location.latitude},${location.longitude}&zoom=17&size=600x300&maptype=mapnik&markers=${location.latitude},${location.longitude},ol-marker';
 
     return Container(
       decoration: BoxDecoration(
@@ -32,7 +34,7 @@ class InteractiveLocationMap extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
+          // Header: Tên vị trí và Tòa nhà
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -49,11 +51,14 @@ class InteractiveLocationMap extends StatelessWidget {
                     children: [
                       Text(
                         location.locationName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.teal),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF004D40)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 2),
                       Text(
-                        location.fullAddress,
-                        style: TextStyle(fontSize: 11, color: Colors.teal.shade700),
+                        '${location.campusName} - ${location.floor}',
+                        style: TextStyle(fontSize: 12, color: Colors.teal.shade700),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -75,19 +80,39 @@ class InteractiveLocationMap extends StatelessWidget {
             ),
           ),
 
-          // Bản đồ mô phỏng khuôn viên & Thư viện (Visual Interactive Campus Map)
+          // Bản đồ OpenStreetMap thực tế & Lưới mô phỏng (Interactive Campus Map)
           SizedBox(
-            height: 180,
+            height: 190,
             child: ClipRect(
               child: Stack(
                 children: [
-                  // Lưới nền bản đồ
-                  CustomPaint(
-                    size: const Size(double.infinity, 180),
-                    painter: _CampusGridPainter(),
+                  // Lớp nền 1: Ảnh bản đồ OpenStreetMap thực tế từ tọa độ GPS
+                  Positioned.fill(
+                    child: Image.network(
+                      staticMapUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => CustomPaint(
+                        size: const Size(double.infinity, 190),
+                        painter: _CampusGridPainter(),
+                      ),
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Stack(
+                          children: [
+                            CustomPaint(
+                              size: const Size(double.infinity, 190),
+                              painter: _CampusGridPainter(),
+                            ),
+                            const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.teal),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
 
-                  // Pin định vị tài liệu tại thư viện
+                  // Pin định vị tài liệu nổi bật
                   Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -98,7 +123,7 @@ class InteractiveLocationMap extends StatelessWidget {
                             color: const Color(0xFFD81B60),
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
-                              BoxShadow(color: Colors.pink.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 2)),
+                              BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2)),
                             ],
                           ),
                           child: Row(
@@ -131,14 +156,14 @@ class InteractiveLocationMap extends StatelessWidget {
                     ),
                   ),
 
-                  // Tọa độ GPS hiển thị góc
+                  // Tọa độ GPS hiển thị góc dưới bên trái
                   Positioned(
                     bottom: 8,
                     left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.65),
+                        color: Colors.black.withOpacity(0.75),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -148,39 +173,47 @@ class InteractiveLocationMap extends StatelessWidget {
                     ),
                   ),
 
-                  // Nút mở Google Maps
+                  // Nút mở Google Maps chỉ đường thực tế
                   Positioned(
                     bottom: 8,
                     right: 10,
                     child: Tooltip(
-                      message: 'Xem trên Google Maps',
-                      child: InkWell(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('📍 Đang chuyển đến Google Maps: ${location.googleMapsUrl}'),
-                              backgroundColor: Colors.teal.shade800,
-                              duration: const Duration(seconds: 3),
+                      message: 'Mở vị trí chính xác trên Google Maps',
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          onTap: () {
+                            openUrlInNewTab(location.googleMapsUrl);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('📍 Đang mở Google Maps tại tọa độ (${location.latitude}, ${location.longitude})'),
+                                backgroundColor: Colors.teal.shade800,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: Colors.grey.shade400),
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 4, offset: const Offset(0, 1)),
+                              ],
                             ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.grey.shade400),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4),
-                            ],
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.open_in_new_rounded, size: 12, color: Colors.blue),
-                              SizedBox(width: 4),
-                              Text('Google Maps', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue)),
-                            ],
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.map_rounded, size: 14, color: Colors.blue),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Google Maps',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -191,7 +224,7 @@ class InteractiveLocationMap extends StatelessWidget {
             ),
           ),
 
-          // Footer: Vị trí ngăn & kệ sách
+          // Footer: Vị trí ngăn & kệ sách chi tiết
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -223,7 +256,6 @@ class _CampusGridPainter extends CustomPainter {
     final bgPaint = Paint()..color = const Color(0xFFF1F5F9);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    // Vẽ các đường đường đi khuôn viên (Campus pathways)
     final pathPaint = Paint()
       ..color = const Color(0xFFE2E8F0)
       ..strokeWidth = 14
@@ -232,13 +264,11 @@ class _CampusGridPainter extends CustomPainter {
     canvas.drawLine(Offset(0, size.height * 0.4), Offset(size.width, size.height * 0.6), pathPaint);
     canvas.drawLine(Offset(size.width * 0.35, 0), Offset(size.width * 0.65, size.height), pathPaint);
 
-    // Vẽ các khối tòa nhà (Campus buildings)
     final bldPaint = Paint()..color = const Color(0xFFCBD5E1);
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(20, 20, 80, 50), const Radius.circular(6)), bldPaint);
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width - 110, 30, 90, 60), const Radius.circular(6)), bldPaint);
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(30, size.height - 70, 100, 50), const Radius.circular(6)), bldPaint);
 
-    // Khối Thư viện Trung tâm (Library Building)
     final libPaint = Paint()..color = Colors.teal.shade200;
     canvas.drawRRect(
       RRect.fromRectAndRadius(

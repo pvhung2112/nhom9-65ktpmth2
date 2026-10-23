@@ -1,3 +1,4 @@
+import '../services/geocoding_service.dart';
 import 'package:uuid/uuid.dart';
 import '../database/database_helper.dart';
 import '../models/tag_model.dart';
@@ -1157,78 +1158,196 @@ class _AddEditDocumentPageState extends State<AddEditDocumentPage> {
   }
 
   void _showQuickAddLocationDialog() {
-    final nameCtrl = TextEditingController();
-    final bldCtrl = TextEditingController(text: 'Tòa A');
-    final flCtrl = TextEditingController(text: 'Tầng 3');
-    final rmCtrl = TextEditingController(text: 'Phòng A305');
-    final cabCtrl = TextEditingController(text: 'Tủ số 2');
-    final shCtrl = TextEditingController(text: 'Ngăn số 3');
+    final searchCtrl = TextEditingController(text: 'Đại học Thủy Lợi');
+    final nameCtrl = TextEditingController(text: 'Thư viện K1 - ĐH Thủy Lợi');
+    final bldCtrl = TextEditingController(text: 'Nhà K1 (Thư viện)');
+    final flCtrl = TextEditingController(text: 'Tầng 2');
+    final rmCtrl = TextEditingController(text: 'Phòng đọc Luận văn');
+    final cabCtrl = TextEditingController(text: 'Tủ số 03');
+    final shCtrl = TextEditingController(text: 'Ngăn số 02');
+    final latCtrl = TextEditingController(text: '21.0071');
+    final lngCtrl = TextEditingController(text: '105.8253');
+
+    bool isSearching = false;
+    String? foundAddress = '175 Tây Sơn, Phường Trung Liệt, Quận Đống Đa, Hà Nội';
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Thêm Kho / Vị Trí Cất Giữ'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
             children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Tên kho (e.g. Tòa A - Phòng A305)', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: bldCtrl,
-                decoration: const InputDecoration(labelText: 'Tòa nhà', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: TextField(controller: flCtrl, decoration: const InputDecoration(labelText: 'Tầng', border: OutlineInputBorder()))),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: rmCtrl, decoration: const InputDecoration(labelText: 'Phòng', border: OutlineInputBorder()))),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: TextField(controller: cabCtrl, decoration: const InputDecoration(labelText: 'Tủ', border: OutlineInputBorder()))),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: shCtrl, decoration: const InputDecoration(labelText: 'Ngăn', border: OutlineInputBorder()))),
-                ],
-              ),
+              Icon(Icons.travel_explore_rounded, color: Colors.teal),
+              SizedBox(width: 8),
+              Text('Thêm Kho & Định Vị Tòa Nhà', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
-            onPressed: () async {
-              var name = nameCtrl.text.trim();
-              if (name.isEmpty) name = '${bldCtrl.text.trim()} - ${rmCtrl.text.trim()}';
-              final newLoc = StorageLocationItem(
-                id: const Uuid().v4(),
-                name: name,
-                building: bldCtrl.text.trim(),
-                floor: flCtrl.text.trim(),
-                room: rmCtrl.text.trim(),
-                cabinet: cabCtrl.text.trim(),
-                shelf: shCtrl.text.trim(),
-              );
-              await AppDatabase().insertStorageLocation(newLoc);
-              _supabaseService.insertStorageLocationOnline(newLoc);
-              setState(() {
-                _availableLocations = AppDatabase().getAllStorageLocations();
-                _selectedLocationId = newLoc.id;
-                _physicalLocationController.text = newLoc.name;
-                _shelfLocationController.text = newLoc.shelfDetail;
-              });
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Lưu Kho'),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 480,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.teal.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tìm kiếm địa điểm trên bản đồ (VD: Đại học Thủy Lợi):',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.teal),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: searchCtrl,
+                                decoration: const InputDecoration(
+                                  hintText: 'Nhập địa điểm (ĐH Thủy Lợi, 175 Tây Sơn...)',
+                                  isDense: true,
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: Colors.teal),
+                              onPressed: isSearching ? null : () async {
+                                final val = searchCtrl.text.trim();
+                                if (val.isEmpty) return;
+                                setDlgState(() => isSearching = true);
+                                final results = await GeocodingService().searchLocation(val);
+                                if (results.isNotEmpty) {
+                                  final first = results.first;
+                                  setDlgState(() {
+                                    nameCtrl.text = first.name;
+                                    bldCtrl.text = first.building.isNotEmpty ? first.building : 'Tòa nhà chính';
+                                    latCtrl.text = first.latitude.toStringAsFixed(5);
+                                    lngCtrl.text = first.longitude.toStringAsFixed(5);
+                                    foundAddress = first.displayName;
+                                  });
+                                }
+                                setDlgState(() => isSearching = false);
+                              },
+                              child: isSearching
+                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Text('Tìm'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        const Text('Chọn nhanh tòa nhà ĐH Thủy Lợi:', style: TextStyle(fontSize: 11, color: Colors.black54)),
+                        const SizedBox(height: 4),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: GeocodingService.thuyLoiPresets.map((preset) => Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ActionChip(
+                                label: Text(preset.name, style: const TextStyle(fontSize: 11)),
+                                onPressed: () {
+                                  setDlgState(() {
+                                    searchCtrl.text = preset.name;
+                                    nameCtrl.text = preset.name;
+                                    bldCtrl.text = preset.building;
+                                    latCtrl.text = preset.latitude.toStringAsFixed(5);
+                                    lngCtrl.text = preset.longitude.toStringAsFixed(5);
+                                    foundAddress = preset.displayName;
+                                  });
+                                },
+                              ),
+                            )).toList(),
+                          ),
+                        ),
+                        if (foundAddress != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            '📍 $foundAddress',
+                            style: const TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.w600),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Tên kho *', border: OutlineInputBorder(), isDense: true),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: TextField(controller: bldCtrl, decoration: const InputDecoration(labelText: 'Tòa nhà', border: OutlineInputBorder(), isDense: true))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: flCtrl, decoration: const InputDecoration(labelText: 'Tầng', border: OutlineInputBorder(), isDense: true))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: rmCtrl, decoration: const InputDecoration(labelText: 'Phòng', border: OutlineInputBorder(), isDense: true))),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: TextField(controller: cabCtrl, decoration: const InputDecoration(labelText: 'Tủ', border: OutlineInputBorder(), isDense: true))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: shCtrl, decoration: const InputDecoration(labelText: 'Ngăn', border: OutlineInputBorder(), isDense: true))),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: TextField(controller: latCtrl, decoration: const InputDecoration(labelText: 'Vĩ độ GPS', border: OutlineInputBorder(), isDense: true))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: lngCtrl, decoration: const InputDecoration(labelText: 'Kinh độ GPS', border: OutlineInputBorder(), isDense: true))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+              onPressed: () async {
+                var name = nameCtrl.text.trim();
+                if (name.isEmpty) name = '${bldCtrl.text.trim()} - ${rmCtrl.text.trim()}';
+                final newLoc = StorageLocationItem(
+                  id: const Uuid().v4(),
+                  name: name,
+                  building: bldCtrl.text.trim(),
+                  floor: flCtrl.text.trim(),
+                  room: rmCtrl.text.trim(),
+                  cabinet: cabCtrl.text.trim(),
+                  shelf: shCtrl.text.trim(),
+                  latitude: double.tryParse(latCtrl.text.trim()) ?? 21.00699,
+                  longitude: double.tryParse(lngCtrl.text.trim()) ?? 105.82510,
+                );
+                await AppDatabase().insertStorageLocation(newLoc);
+                _supabaseService.insertStorageLocationOnline(newLoc);
+                setState(() {
+                  _availableLocations = AppDatabase().getAllStorageLocations();
+                  _selectedLocationId = newLoc.id;
+                  _physicalLocationController.text = newLoc.name;
+                  _shelfLocationController.text = newLoc.shelfDetail;
+                });
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Lưu Kho'),
+            ),
+          ],
+        ),
       ),
     );
   }

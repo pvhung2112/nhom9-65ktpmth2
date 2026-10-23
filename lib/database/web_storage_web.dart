@@ -14,3 +14,9 @@ String? getLocalCache(String key) {
     return null;
   }
 }
+
+void openUrlInNewTab(String url) {
+  try {
+    html.window.open(url, '_blank');
+  } catch (_) {}
+}
